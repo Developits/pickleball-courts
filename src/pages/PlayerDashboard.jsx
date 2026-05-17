@@ -66,42 +66,48 @@ export default function PlayerDashboard() {
     if (rawValue) {
       console.log("Scanned:", rawValue);
       
-      // Parse the QR code URL
-      let token = rawValue;
+      // Parse the QR code URL and extract token from query parameters
+      let token = null;
       try {
         const url = new URL(rawValue);
-        const pathParts = url.pathname.split('/');
-        token = pathParts[pathParts.length - 1];
+        token = url.searchParams.get("token");
+        console.log("Extracted token:", token);
       } catch (e) {
-        // If it's not a URL, use the raw value as the token
+        console.error("Failed to parse URL:", e);
+        setMessage("Invalid QR code format");
+        return;
       }
       
-      if (token && token !== 'validate') {
-        try {
-          const response = await fetch("/api/qr/validate", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              token: token,
-              user_id: user.id,
-            }),
-          });
+      if (!token) {
+        setMessage("Invalid QR code - no token found");
+        return;
+      }
+      
+      try {
+        const response = await fetch("/api/qr/validate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            token: token,
+            user_id: user.id,
+          }),
+        });
 
-          const data = await response.json();
+        const data = await response.json();
 
-          if (response.ok) {
-            setMessage("Successfully checked in via QR!");
-            setCheckedIn(true);
-            setScannerActive(false);
-            fetchCheckInStatus();
-          } else {
-            setMessage(data.error || "Failed to check in");
-          }
-        } catch (err) {
-          setMessage("Error processing QR code");
+        if (response.ok) {
+          setMessage("Successfully checked in via QR!");
+          setCheckedIn(true);
+          setScannerActive(false);
+          fetchCheckInStatus();
+        } else {
+          setMessage(data.error || "Failed to check in");
         }
+      } catch (err) {
+        console.error("Error processing QR:", err);
+        setMessage("Error processing QR code");
       }
     }
   };
