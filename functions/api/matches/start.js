@@ -75,14 +75,8 @@ export async function onRequestPost(context) {
       WHERE id = ?
     `).bind(result.meta.last_row_id, court_id).run();
     
+    // Remove players from queue and check-ins (they're now playing)
     for (const userId of [team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id]) {
-      await env.DB.prepare(`
-        UPDATE users SET 
-          total_matches = total_matches + 1,
-          total_matches_today = total_matches_today + 1
-        WHERE id = ?
-      `).bind(userId).run();
-      
       await env.DB.prepare(`
         DELETE FROM queue WHERE user_id = ?
       `).bind(userId).run();
@@ -92,6 +86,9 @@ export async function onRequestPost(context) {
         WHERE user_id = ? AND checked_out_at IS NULL
       `).bind(userId).run();
     }
+    
+    // NOTE: Player stats (total_matches, wins, losses) are updated in matches/end.js
+    // when the match is actually finished and winner is determined
     
     return createSuccessResponse({
       success: true,

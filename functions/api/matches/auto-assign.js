@@ -121,19 +121,15 @@ export async function onRequestPost(context) {
       WHERE id = ?
     `).bind(result.meta.last_row_id, selectedCourt.id).run();
     
-    // Update players and remove from queue
+    // Remove players from queue (they're now playing, not waiting)
     for (const userId of [team1Player1, team1Player2, team2Player1, team2Player2]) {
-      await env.DB.prepare(`
-        UPDATE users SET 
-          total_matches = total_matches + 1,
-          total_matches_today = total_matches_today + 1
-        WHERE id = ?
-      `).bind(userId).run();
-      
       await env.DB.prepare(`
         DELETE FROM queue WHERE user_id = ?
       `).bind(userId).run();
     }
+    
+    // NOTE: Player stats (total_matches, wins, losses) are updated in matches/end.js
+    // when the match is actually finished and winner is determined
     
     // Get player names for the response
     const playerInfo = await env.DB.prepare(`

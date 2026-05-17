@@ -54,12 +54,31 @@ export async function onRequestPost(context) {
       WHERE id = ?
     `).bind(match.court_id).run();
     
+    const allMatchPlayerIds = [
+      match.team1_player1_id,
+      match.team1_player2_id,
+      match.team2_player1_id,
+      match.team2_player2_id
+    ];
+    
+    // Update total_matches and total_matches_today for ALL players
+    for (const userId of allMatchPlayerIds) {
+      await env.DB.prepare(`
+        UPDATE users SET 
+          total_matches = total_matches + 1,
+          total_matches_today = total_matches_today + 1
+        WHERE id = ?
+      `).bind(userId).run();
+    }
+    
+    // Update wins for winner team
     for (const userId of winnerTeamPlayerIds) {
       await env.DB.prepare(`
         UPDATE users SET wins = wins + 1 WHERE id = ?
       `).bind(userId).run();
     }
     
+    // Update losses and sit-out period for loser team
     for (const userId of loserTeamPlayerIds) {
       await env.DB.prepare(`
         UPDATE users SET losses = losses + 1 WHERE id = ?
