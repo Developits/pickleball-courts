@@ -14,12 +14,12 @@ export default function SupervisorDashboard() {
   const [loadingQR, setLoadingQR] = useState(false);
   const [message, setMessage] = useState("");
   const [isAutoAssigning, setIsAutoAssigning] = useState(false);
-  const [endingMatch, setEndingMatch] = useState(null);
   const [cancelingMatch, setCancelingMatch] = useState(null);
   const [showScoreModal, setShowScoreModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
-  const [selectedWinner, setSelectedWinner] = useState(null);
-  const [matchScore, setMatchScore] = useState("");
+  const [team1Score, setTeam1Score] = useState("");
+  const [team2Score, setTeam2Score] = useState("");
+  const [isEndingMatch, setIsEndingMatch] = useState(false);
 
   const loadAllData = async () => {
     try {
@@ -68,10 +68,8 @@ export default function SupervisorDashboard() {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const matchesData = await matchesResponse.json();
-        console.log("Matches API response:", matchesData);
         if (matchesData.matches) {
           setMatches(matchesData.matches);
-          console.log("Set matches state to:", matchesData.matches);
         }
       } catch (err) {
         console.error('Matches API error:', err);
@@ -153,17 +151,31 @@ export default function SupervisorDashboard() {
     }
   };
 
-  const handleEndMatchClick = (match, winnerTeam) => {
+  const handleEndMatchClick = (match) => {
     setSelectedMatch(match);
-    setSelectedWinner(winnerTeam);
-    setMatchScore("");
+    setTeam1Score("");
+    setTeam2Score("");
     setShowScoreModal(true);
   };
 
   const submitEndMatch = async () => {
-    if (!selectedMatch || !selectedWinner) return;
+    if (!selectedMatch) return;
     
-    setEndingMatch(selectedMatch.id);
+    // Validate scores
+    if (!team1Score || !team2Score) {
+      setMessage("❌ Please enter scores for both teams");
+      return;
+    }
+    
+    const score1 = parseInt(team1Score);
+    const score2 = parseInt(team2Score);
+    
+    if (isNaN(score1) || isNaN(score2) || score1 < 0 || score2 < 0) {
+      setMessage("❌ Invalid scores. Please enter positive numbers");
+      return;
+    }
+    
+    setIsEndingMatch(true);
     setShowScoreModal(false);
     
     try {
@@ -176,14 +188,14 @@ export default function SupervisorDashboard() {
         },
         body: JSON.stringify({
           match_id: selectedMatch.id,
-          winner_team: selectedWinner,
-          score: matchScore || null
+          team1_score: score1,
+          team2_score: score2
         })
       });
       
       const data = await response.json();
       if (response.ok) {
-        setMessage("✅ " + data.message + (matchScore ? ` (Score: ${matchScore})` : ''));
+        setMessage(`✅ Match ended! ${data.winner_name} won ${score1}-${score2}`);
         loadAllData();
       } else {
         setMessage("❌ " + (data.error || "Failed to end match"));
@@ -192,9 +204,8 @@ export default function SupervisorDashboard() {
       console.error("Error ending match:", err);
       setMessage("Error connecting to server");
     } finally {
-      setEndingMatch(null);
+      setIsEndingMatch(false);
       setSelectedMatch(null);
-      setSelectedWinner(null);
     }
   };
 
@@ -260,36 +271,56 @@ export default function SupervisorDashboard() {
       )}
 
       {/* Score Input Modal */}
-      {showScoreModal && (
+      {showScoreModal && selectedMatch && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-bold mb-4">Enter Match Score</h3>
-            <p className="mb-4">
-              {selectedMatch && `Winner: ${selectedWinner === 1 ? 'Team 1' : 'Team 2'}`}
-            </p>
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
-                Score (optional, e.g., "11-8, 9-11, 11-7")
-              </label>
-              <input
-                type="text"
-                value={matchScore}
-                onChange={(e) => setMatchScore(e.target.value)}
-                placeholder="11-8"
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                autoFocus
-              />
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
+            <h3 className="text-xl font-bold mb-4">Enter Match Results</h3>
+            <p className="mb-4 text-sm text-gray-600">Enter the final scores for both teams</p>
+            
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="text-center">
+                <div className="font-bold text-blue-800 mb-2">Team 1</div>
+                <div className="text-sm text-gray-600 mb-2">
+                  {selectedMatch.team1_player1_name} & {selectedMatch.team1_player2_name}
+                </div>
+                <input
+                  type="number"
+                  value={team1Score}
+                  onChange={(e) => setTeam1Score(e.target.value)}
+                  placeholder="Score"
+                  className="w-full px-4 py-3 text-2xl text-center border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  min="0"
+                  autoFocus
+                />
+              </div>
+              <div className="text-center">
+                <div className="font-bold text-orange-800 mb-2">Team 2</div>
+                <div className="text-sm text-gray-600 mb-2">
+                  {selectedMatch.team2_player1_name} & {selectedMatch.team2_player2_name}
+                </div>
+                <input
+                  type="number"
+                  value={team2Score}
+                  onChange={(e) => setTeam2Score(e.target.value)}
+                  placeholder="Score"
+                  className="w-full px-4 py-3 text-2xl text-center border-2 border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  min="0"
+                />
+              </div>
             </div>
+            
             <div className="flex gap-3">
               <button
                 onClick={submitEndMatch}
-                className="btn btn-primary flex-1"
+                disabled={isEndingMatch}
+                className="btn btn-primary flex-1 py-3"
               >
-                Confirm & End Match
+                {isEndingMatch ? 'Ending Match...' : 'End Match & Record Results'}
               </button>
               <button
                 onClick={() => setShowScoreModal(false)}
-                className="btn btn-secondary flex-1"
+                disabled={isEndingMatch}
+                className="btn btn-secondary flex-1 py-3"
               >
                 Cancel
               </button>
@@ -475,22 +506,15 @@ export default function SupervisorDashboard() {
                     
                     <div className="flex gap-3">
                       <button
-                        onClick={() => handleEndMatchClick(match, 1)}
-                        disabled={endingMatch === match.id || cancelingMatch === match.id}
-                        className="btn btn-secondary flex-1"
+                        onClick={() => handleEndMatchClick(match)}
+                        disabled={cancelingMatch === match.id || isEndingMatch}
+                        className="btn btn-primary flex-1"
                       >
-                        {endingMatch === match.id ? 'Ending...' : 'Team 1 Wins'}
-                      </button>
-                      <button
-                        onClick={() => handleEndMatchClick(match, 2)}
-                        disabled={endingMatch === match.id || cancelingMatch === match.id}
-                        className="btn btn-secondary flex-1"
-                      >
-                        {endingMatch === match.id ? 'Ending...' : 'Team 2 Wins'}
+                        End Match
                       </button>
                       <button
                         onClick={() => cancelMatch(match.id)}
-                        disabled={endingMatch === match.id || cancelingMatch === match.id}
+                        disabled={cancelingMatch === match.id || isEndingMatch}
                         className="btn btn-danger flex-1"
                       >
                         {cancelingMatch === match.id ? 'Canceling...' : 'Cancel Match'}
