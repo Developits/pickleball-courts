@@ -18,13 +18,15 @@ CREATE TABLE users (
   warnings INTEGER NOT NULL DEFAULT 0,
   banned_until DATETIME,
   push_subscription TEXT, -- For PWA push notifications
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at DATETIME -- Soft delete field
 );
 
 CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_users_is_approved ON users(is_approved);
 CREATE INDEX idx_users_student_id ON users(student_id);
 CREATE INDEX idx_users_banned_until ON users(banned_until);
+CREATE INDEX idx_users_deleted_at ON users(deleted_at);
 
 -- Daily Check-ins Table (Prevents dorm check-ins)
 CREATE TABLE check_ins (
@@ -126,6 +128,7 @@ CREATE TABLE matches (
   ended_at DATETIME,
   winner_team INTEGER,
   score TEXT,
+  deleted_at DATETIME, -- Soft delete field
   FOREIGN KEY (court_id) REFERENCES courts(id)
 );
 

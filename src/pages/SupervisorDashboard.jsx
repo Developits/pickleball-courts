@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { QRCodeSVG } from 'qrcode.react';
 import PendingUsers from '../components/PendingUsers';
+import { useSSE } from '../hooks/useSSE';
 
 export default function SupervisorDashboard() {
   const { user } = useAuth();
@@ -34,6 +35,7 @@ export default function SupervisorDashboard() {
         }
       } catch (err) {
         console.error('Courts API error:', err);
+        setMessage("Failed to load courts. Please refresh the page.");
       }
 
       // Load queue
@@ -47,6 +49,7 @@ export default function SupervisorDashboard() {
         }
       } catch (err) {
         console.error('Queue API error:', err);
+        setMessage("Failed to load queue. Please refresh the page.");
       }
 
       // Load check-ins
@@ -60,6 +63,7 @@ export default function SupervisorDashboard() {
         }
       } catch (err) {
         console.error('Checkins API error:', err);
+        setMessage("Failed to load check-ins. Please refresh the page.");
       }
 
       // Load matches
@@ -73,6 +77,7 @@ export default function SupervisorDashboard() {
         }
       } catch (err) {
         console.error('Matches API error:', err);
+        setMessage("Failed to load matches. Please refresh the page.");
       }
       
     } catch (error) {
@@ -80,11 +85,32 @@ export default function SupervisorDashboard() {
     }
   };
 
+  // Use SSE for real-time updates
+  const { data: sseData, connected: sseConnected, error: sseError } = useSSE('/api/events');
+  
+  // Update state when SSE data changes
   useEffect(() => {
+    if (sseData) {
+      if (sseData.courts) setCourts(sseData.courts);
+      if (sseData.queue) setQueue(sseData.queue);
+      if (sseData.matches) setMatches(sseData.matches);
+      if (sseData.checkedIn) setCheckedInPlayers(sseData.checkedIn);
+    }
+  }, [sseData]);
+
+  useEffect(() => {
+    // Initial load
     loadAllData();
-    const timer = setInterval(loadAllData, 3000);
-    return () => clearInterval(timer);
-  }, []);
+    
+    // Fallback polling every 10 seconds in case SSE fails
+    const fallbackTimer = setInterval(() => {
+      if (!sseConnected) {
+        loadAllData();
+      }
+    }, 10000);
+    
+    return () => clearInterval(fallbackTimer);
+  }, [sseConnected]);
 
   const generateQR = async () => {
     setLoadingQR(true);

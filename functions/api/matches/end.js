@@ -1,5 +1,6 @@
 import { supervisorOrAdmin } from "../utils/auth";
 import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
+import { sendNotificationToMultiple, NOTIFICATION_TYPES } from "../utils/notifications";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -129,6 +130,28 @@ export async function onRequestPost(context) {
         UPDATE users SET sit_out_until = datetime(CURRENT_TIMESTAMP, '+' || ? || ' minutes')
         WHERE id = ?
       `).bind(sitOutMatches, userId).run();
+    }
+    
+    // Notify next players in queue that court is available
+    const nextPlayers = await env.DB.prepare(`
+      SELECT q.user_id, u.name 
+      FROM queue q
+      JOIN users u ON q.user_id = u.id
+      WHERE q.is_ready = TRUE
+      ORDER BY q.joined_at ASC
+      LIMIT 4
+    `).all();
+    
+    if (nextPlayers.results.length > 0) {
+      const nextPlayerIds = nextPlayers.results.map(p => p.user_id);
+      const nextPlayerNames = nextPlayers.results.map(p => p.name).join(", ");
+      await sendNotificationToMultiple(
+        env,
+        nextPlayerIds,
+        NOTIFICATION_TYPES.MATCH,
+        "Court is Available!",
+        "A court has freed up! You're next in line to play!"
+      );
     }
     
     return createSuccessResponse({

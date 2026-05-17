@@ -1,5 +1,7 @@
 import { supervisorOrAdmin } from "../utils/auth";
 import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
+import { calculateCourtAllocation } from "../utils/queue";
+import { sendNotificationToMultiple, NOTIFICATION_TYPES } from "../utils/notifications";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -41,6 +43,15 @@ export async function onRequestPost(context) {
       return createErrorResponse("Not enough players in queue (need at least 4)", 400);
     }
     
+    // Get system settings
+    const settingsResult = await env.DB.prepare(`
+      SELECT key, value FROM settings
+    `).all();
+    const settings = {};
+    settingsResult.results.forEach(row => {
+      settings[row.key] = row.value;
+    });
+    
     // Filter out players in sit-out period
     const now = new Date();
     const eligiblePlayers = queuePlayers.results.filter(player => {
@@ -63,6 +74,17 @@ export async function onRequestPost(context) {
         score += 50;
       }
       
+      // Add late arrival bonus from utils
+      const lateArrivalTime = settings.late_arrival_time || '20:30';
+      const lateThreshold = parseInt(settings.late_arrival_priority_threshold || '2');
+      const [hours, minutes] = lateArrivalTime.split(':').map(Number);
+      const lateTime = new Date(nowDate);
+      lateTime.setHours(hours, minutes, 0, 0);
+      
+      if (nowDate >= lateTime && (player.total_matches_today || 0) < lateThreshold) {
+        score += 1000;
+      }
+      
       return Math.round(score);
     };
     
@@ -72,97 +94,154 @@ export async function onRequestPost(context) {
       priorityScore: calculatePriority(player, now)
     })).sort((a, b) => b.priorityScore - a.priorityScore);
     
-    // Take top 4 players for the first match
-    const top4Players = sortedPlayers.slice(0, 4);
+    // Calculate number of waiting women
+    const waitingWomen = sortedPlayers.filter(p => p.gender === 'female').length;
     
-    // Select first available court
-    const selectedCourt = availableCourts.results[0];
+    // Calculate court allocation using gender balance logic
+    const allocation = calculateCourtAllocation(waitingWomen, settings);
     
-    // Determine game type based on players' preferences and genders
-    let gameType = "mens_double";
-    const femaleCount = top4Players.filter(p => p.gender === "female").length;
+    // Calculate total possible matches
+    let availableCourtCount = availableCourts.results.length;
+    let mensCourtCount = Math.min(allocation.mensCourts, availableCourtCount);
+    availableCourtCount -= mensCourtCount;
+    let mixedCourtCount = Math.min(allocation.mixedCourts, availableCourtCount);
+    availableCourtCount -= mixedCourtCount;
+    let womensCourtCount = Math.min(allocation.womensCourts, availableCourtCount);
     
-    // If 4 women, use women's double
-    if (femaleCount === 4) {
-      gameType = "womens_double";
-    } 
-    // If 2 women, use mixed double
-    else if (femaleCount === 2) {
-      gameType = "mixed_double";
-    }
-    // Otherwise, default to men's double
-    else {
-      gameType = "mens_double";
-    }
+    const createdMatches = [];
+    let remainingPlayers = [...sortedPlayers];
     
-    // Create teams (sorted by priority)
-    const team1Player1 = top4Players[0].user_id;
-    const team1Player2 = top4Players[2].user_id;
-    const team2Player1 = top4Players[1].user_id;
-    const team2Player2 = top4Players[3].user_id;
+    // Separate players by gender for easier assignment
+    const femalePlayers = remainingPlayers.filter(p => p.gender === 'female');
+    const malePlayers = remainingPlayers.filter(p => p.gender === 'male');
     
-    // Start the match using the existing logic from start.js
-    const result = await env.DB.prepare(`
-      INSERT INTO matches (
-        court_id, team1_player1_id, team1_player2_id, 
-        team2_player1_id, team2_player2_id, game_type
-      )
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).bind(
-      selectedCourt.id,
-      team1Player1, team1Player2,
-      team2Player1, team2Player2,
-      gameType
-    ).run();
-    
-    console.log("Match created with ID:", result.meta.last_row_id);
-    
-    // Update court status
-    await env.DB.prepare(`
-      UPDATE courts SET status = 'occupied', current_match_id = ?
-      WHERE id = ?
-    `).bind(result.meta.last_row_id, selectedCourt.id).run();
-    
-    // Remove players from queue (they're now playing, not waiting)
-    for (const userId of [team1Player1, team1Player2, team2Player1, team2Player2]) {
-      await env.DB.prepare(`
-        DELETE FROM queue WHERE user_id = ?
-      `).bind(userId).run();
+    // Process women's doubles first if needed
+    for (let i = 0; i < womensCourtCount && femalePlayers.length >= 4; i++) {
+      const playersForMatch = femalePlayers.slice(0, 4);
+      const result = await createMatch(env, playersForMatch, availableCourts.results[createdMatches.length], 'womens_double');
+      createdMatches.push(result);
+      
+      // Remove assigned players
+      const assignedIds = playersForMatch.map(p => p.user_id);
+      remainingPlayers = remainingPlayers.filter(p => !assignedIds.includes(p.user_id));
     }
     
-    // NOTE: Player stats (total_matches, wins, losses) are updated in matches/end.js
-    // when the match is actually finished and winner is determined
+    // Process mixed doubles next (2 women and 2 men each)
+    for (let i = 0; i < mixedCourtCount; i++) {
+      const femaleForMatch = remainingPlayers.filter(p => p.gender === 'female').slice(0, 2);
+      const maleForMatch = remainingPlayers.filter(p => p.gender === 'male').slice(0, 2);
+      
+      if (femaleForMatch.length >= 2 && maleForMatch.length >= 2) {
+        const playersForMatch = [...femaleForMatch, ...maleForMatch];
+        const result = await createMatch(env, playersForMatch, availableCourts.results[createdMatches.length], 'mixed_double');
+        createdMatches.push(result);
+        
+        const assignedIds = playersForMatch.map(p => p.user_id);
+        remainingPlayers = remainingPlayers.filter(p => !assignedIds.includes(p.user_id));
+      } else {
+        break;
+      }
+    }
     
-    // Get player names for the response
-    const playerInfo = await env.DB.prepare(`
-      SELECT id, name FROM users WHERE id IN (?, ?, ?, ?)
-    `).bind(team1Player1, team1Player2, team2Player1, team2Player2).all();
+    // Process men's doubles with remaining players
+    let mensCourtLeft = mensCourtCount;
+    while (mensCourtLeft > 0 && remainingPlayers.length >= 4) {
+      const playersForMatch = remainingPlayers.slice(0, 4);
+      // Check if 4 women - use women's instead
+      const femaleInThis = playersForMatch.filter(p => p.gender === 'female').length;
+      const gameType = femaleInThis ===4 ? 'womens_double' : 'mens_double';
+      
+      const result = await createMatch(env, playersForMatch, availableCourts.results[createdMatches.length], gameType);
+      createdMatches.push(result);
+      
+      const assignedIds = playersForMatch.map(p => p.user_id);
+      remainingPlayers = remainingPlayers.filter(p => !assignedIds.includes(p.user_id));
+      mensCourtLeft--;
+    }
     
-    const playerMap = {};
-    playerInfo.results.forEach(p => {
-      playerMap[p.id] = p.name;
-    });
+    if (createdMatches.length ===0) {
+      return createErrorResponse("Could not create any matches with current queue composition", 400);
+    }
+    
+    // Notify all matched players
+    const allMatchedPlayerIds = createdMatches.flatMap(m => [m.team1Player1, m.team1Player2, m.team2Player1, m.team2Player2]);
+    await sendNotificationToMultiple(
+      env,
+      allMatchedPlayerIds,
+      NOTIFICATION_TYPES.MATCH,
+      "Match Assigned!",
+      "You've been assigned to a match! Head to the court!"
+    );
     
     return createSuccessResponse({
       success: true,
-      match_id: result.meta.last_row_id,
-      court_id: selectedCourt.id,
-      court_name: selectedCourt.name,
-      game_type: gameType,
-      teams: {
-        team1: [
-          playerMap[team1Player1],
-          playerMap[team1Player2]
-        ],
-        team2: [
-          playerMap[team2Player1],
-          playerMap[team2Player2]
-        ]
-      },
-      message: "Match automatically created successfully"
+      matches: createdMatches,
+      message: `Successfully created ${createdMatches.length} match(es)`
     }, 201);
   } catch (error) {
     console.error("Error auto-assigning match:", error);
     return createErrorResponse("Failed to auto-assign match: " + error.message, 500);
   }
+}
+
+async function createMatch(env, players, court, gameType) {
+  // Create teams from sorted players
+  const team1Player1 = players[0].user_id;
+  const team1Player2 = players[2].user_id;
+  const team2Player1 = players[1].user_id;
+  const team2Player2 = players[3].user_id;
+  
+  // Insert match
+  const result = await env.DB.prepare(`
+    INSERT INTO matches (
+      court_id, team1_player1_id, team1_player2_id, 
+      team2_player1_id, team2_player2_id, game_type
+    )
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(
+    court.id,
+    team1Player1, team1Player2,
+    team2Player1, team2Player2,
+    gameType
+  ).run();
+  
+  const matchId = result.meta.last_row_id;
+  
+  // Update court status
+  await env.DB.prepare(`
+    UPDATE courts SET status = 'occupied', current_match_id = ?
+    WHERE id = ?
+  `).bind(matchId, court.id).run();
+  
+  // Remove players from queue
+  for (const userId of [team1Player1, team1Player2, team2Player1, team2Player2]) {
+    await env.DB.prepare(`
+      DELETE FROM queue WHERE user_id = ?
+    `).bind(userId).run();
+  }
+  
+  // Get player names for response
+  const playerInfo = await env.DB.prepare(`
+    SELECT id, name FROM users WHERE id IN (?, ?, ?, ?)
+  `).bind(team1Player1, team1Player2, team2Player1, team2Player2).all();
+  
+  const playerMap = {};
+  playerInfo.results.forEach(p => {
+    playerMap[p.id] = p.name;
+  });
+  
+  return {
+    match_id: matchId,
+    court_id: court.id,
+    court_name: court.name,
+    game_type: gameType,
+    team1Player1,
+    team1Player2,
+    team2Player1,
+    team2Player2,
+    teams: {
+      team1: [playerMap[team1Player1], playerMap[team1Player2]],
+      team2: [playerMap[team2Player1], playerMap[team2Player2]]
+    }
+  };
 }

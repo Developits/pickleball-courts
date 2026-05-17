@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { Scanner } from '@yudiel/react-qr-scanner';
+import { useSSE } from '../hooks/useSSE';
 
 export default function PlayerDashboard() {
   const { user } = useAuth();
@@ -43,6 +44,23 @@ export default function PlayerDashboard() {
     }, 5000);
     return () => clearInterval(interval);
   }, []);
+  
+  // Use SSE for real-time updates
+  const { data: sseData, connected: sseConnected } = useSSE('/api/events');
+  
+  // Update queue data when SSE data changes
+  useEffect(() => {
+    if (sseData && sseData.queue) {
+      setQueueData(sseData.queue);
+    }
+    if (sseData && sseData.checkedIn) {
+      const currentUserCheckedIn = sseData.checkedIn.find(c => c.user_id === user?.id);
+      if (currentUserCheckedIn) {
+        setCheckedIn(true);
+        setCheckInData(currentUserCheckedIn);
+      }
+    }
+  }, [sseData]);
 
   const fetchCheckInStatus = async () => {
     setLoading(true);
@@ -209,6 +227,12 @@ export default function PlayerDashboard() {
     );
   }
 
+  // Calculate win rate
+  const totalMatches = user?.total_matches || 0;
+  const wins = user?.wins || 0;
+  const losses = user?.losses || 0;
+  const winRate = totalMatches > 0 ? Math.round((wins / totalMatches) * 100) : 0;
+
   return (
     <div>
       <h1 className="text-3xl font-bold mb-6">Player Dashboard</h1>
@@ -219,6 +243,62 @@ export default function PlayerDashboard() {
           {message}
         </div>
       )}
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Total Matches</p>
+              <p className="text-2xl font-bold">{totalMatches}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Wins</p>
+              <p className="text-2xl font-bold text-green-600">{wins}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Losses</p>
+              <p className="text-2xl font-bold text-red-600">{losses}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Win Rate</p>
+              <p className="text-2xl font-bold text-purple-600">{winRate}%</p>
+            </div>
+          </div>
+        </div>
+      </div>
       
       {/* Check-in Status */}
       <div className="card mb-6">
@@ -262,7 +342,11 @@ export default function PlayerDashboard() {
                   <div className="border-2 border-gray-300 rounded-lg overflow-hidden" style={{ maxWidth: '320px' }}>
                     <Scanner
                       onScan={handleScan}
-                      onError={(error) => console.error("Scanner error:", error)}
+                      onError={(error) => {
+                        console.error("Scanner error:", error);
+                        setMessage("Camera access denied. Please allow camera permissions in your browser settings.");
+                        setScannerActive(false);
+                      }}
                     />
                   </div>
                   <button

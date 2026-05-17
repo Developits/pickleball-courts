@@ -1,5 +1,6 @@
 import { authenticateRequest } from "../utils/auth";
 import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
+import { sendNotificationToMultiple, NOTIFICATION_TYPES } from "../utils/notifications";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -54,6 +55,19 @@ export async function onRequestPost(context) {
       INSERT INTO queue (user_id, game_preference, is_ready)
       VALUES (?, ?, TRUE)
     `).bind(userId, gamePreference).run();
+    
+    // Notify all supervisors about new player joining queue
+    const supervisors = await env.DB.prepare(`
+      SELECT id FROM users WHERE role IN ('supervisor', 'admin')
+    `).all();
+    const supervisorIds = supervisors.results.map(s => s.id);
+    await sendNotificationToMultiple(
+      env,
+      supervisorIds,
+      NOTIFICATION_TYPES.QUEUE,
+      "New Player in Queue",
+      `${user.name} has joined the waiting queue!`
+    );
     
     return createSuccessResponse({
       success: true,
