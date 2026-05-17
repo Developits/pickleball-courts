@@ -42,7 +42,7 @@ export async function onRequestPost(context) {
     
     const winnerTeamPlayerIds = winner_team === 1
       ? [match.team1_player1_id, match.team1_player2_id]
-      : [match.team1_player1_id, match.team1_player2_id];
+      : [match.team2_player1_id, match.team2_player2_id];
     
     await env.DB.prepare(`
       UPDATE matches SET ended_at = CURRENT_TIMESTAMP, winner_team = ?

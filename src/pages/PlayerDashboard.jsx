@@ -9,9 +9,39 @@ export default function PlayerDashboard() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [scannerActive, setScannerActive] = useState(false);
+  const [inQueue, setInQueue] = useState(false);
+  const [queueEntry, setQueueEntry] = useState(null);
+  const [gamePreference, setGamePreference] = useState("any");
+  const [queueData, setQueueData] = useState([]);
+
+  // Determine available game formats based on gender
+  const availableGameFormats = () => {
+    if (user.gender === "male") {
+      return [
+        { value: "mens_double", label: "Men's Double" },
+        { value: "mixed_double", label: "Mix Double" },
+        { value: "any", label: "Any" }
+      ];
+    } else if (user.gender === "female") {
+      return [
+        { value: "womens_double", label: "Female's Double" },
+        { value: "mixed_double", label: "Mix Double" },
+        { value: "any", label: "Any" }
+      ];
+    }
+    return [
+      { value: "any", label: "Any" }
+    ];
+  };
 
   useEffect(() => {
     fetchCheckInStatus();
+    fetchQueueStatus();
+    const interval = setInterval(() => {
+      fetchCheckInStatus();
+      fetchQueueStatus();
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchCheckInStatus = async () => {
@@ -33,6 +63,39 @@ export default function PlayerDashboard() {
       console.error("Error fetching check-in status:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchQueueStatus = async () => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch("/api/queue", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setQueueData(data.queue || []);
+        // Check if current user is in queue
+        if (data.queue) {
+          const userEntry = data.all_queue_items?.find(item => item.user_id === user.id) ||
+                            data.queue?.find(item => item.user_id === user.id);
+          if (userEntry) {
+            setInQueue(true);
+            setQueueEntry(userEntry);
+            if (userEntry.game_preference) {
+              setGamePreference(userEntry.game_preference);
+            }
+          } else {
+            setInQueue(false);
+            setQueueEntry(null);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching queue status:", err);
     }
   };
 
@@ -82,6 +145,61 @@ export default function PlayerDashboard() {
     }
   };
 
+  const joinQueue = async () => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch("/api/queue/join", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          game_preference: gamePreference
+        })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setMessage("✅ " + (data.message || "Successfully joined the queue!"));
+        fetchQueueStatus();
+      } else {
+        setMessage("❌ " + (data.error || "Failed to join queue"));
+      }
+    } catch (err) {
+      console.error("Error joining queue:", err);
+      setMessage("Error connecting to server");
+    }
+  };
+
+  const leaveQueue = async () => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch("/api/queue/leave", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        }
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setMessage("✅ Successfully left the queue");
+        setInQueue(false);
+        setQueueEntry(null);
+        fetchQueueStatus();
+      } else {
+        setMessage("❌ " + (data.error || "Failed to leave queue"));
+      }
+    } catch (err) {
+      console.error("Error leaving queue:", err);
+      setMessage("Error connecting to server");
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-12">
@@ -94,6 +212,13 @@ export default function PlayerDashboard() {
   return (
     <div>
       <h1 className="text-3xl font-bold mb-6">Player Dashboard</h1>
+      
+      {/* Message Display */}
+      {message && (
+        <div className="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
+          {message}
+        </div>
+      )}
       
       {/* Check-in Status */}
       <div className="card mb-6">
@@ -114,24 +239,12 @@ export default function PlayerDashboard() {
                 </p>
               </div>
             </div>
-            
-            {message && (
-              <div className="mt-4 p-3 bg-green-100 text-green-800 rounded">
-                {message}
-              </div>
-            )}
           </div>
         ) : (
           <div className="space-y-4">
             <p className="text-gray-600">
               You need to check in before you can join the queue.
             </p>
-            
-            {message && (
-              <div className="p-3 bg-yellow-100 text-yellow-800 rounded">
-                {message}
-              </div>
-            )}
             
             {/* QR Scanner */}
             <div className="border-t pt-4">
@@ -165,13 +278,83 @@ export default function PlayerDashboard() {
         )}
       </div>
 
-      {/* Queue Section Placeholder */}
-      <div className="card">
-        <h3 className="text-xl font-bold mb-4">Queue</h3>
-        <p className="text-gray-600">
-          Queue features coming soon! Once checked in, you'll be able to join the waiting queue.
-        </p>
-      </div>
+      {/* Queue Section */}
+      {checkedIn && (
+        <div className="card">
+          <h3 className="text-xl font-bold mb-4">Queue</h3>
+          
+          {inQueue ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="font-bold text-blue-800">You're in Queue!</h4>
+                  <p className="text-sm text-blue-600">
+                    Game Preference: {queueEntry?.game_preference || 'Any'}
+                  </p>
+                </div>
+              </div>
+              
+              <button
+                onClick={leaveQueue}
+                className="btn btn-danger"
+              >
+                Leave Queue
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div>
+                <h4 className="font-semibold mb-3">Choose Game Format</h4>
+                <div className="space-y-3">
+                  {availableGameFormats().map((format) => (
+                  <label key={format.value} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="gamePreference"
+                      value={format.value}
+                      checked={gamePreference === format.value}
+                      onChange={(e) => setGamePreference(e.target.value)}
+                      className="w-4 h-4"
+                    />
+                    <span className="font-medium">{format.label}</span>
+                  </label>
+                ))}
+                </div>
+              </div>
+              
+              <button
+                onClick={joinQueue}
+                className="btn btn-primary"
+              >
+                Add to Queue
+              </button>
+              
+              <div className="border-t pt-4">
+                <h4 className="font-semibold mb-3">Current Waiting Queue ({queueData.length})</h4>
+                {queueData.length === 0 ? (
+                  <p className="text-gray-500">No players in queue yet. Be the first!</p>
+                ) : (
+                  <div className="space-y-2">
+                    {queueData.map((player, index) => (
+                      <div key={player.id} className="p-3 border rounded-lg">
+                        <div className="flex justify-between items-center">
+                        <span className="font-medium">{index + 1}. {player.user_name}</span>
+                        <span className="text-xs text-blue-600">Priority: {player.priority_score}</span>
+                      </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
