@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import NotificationBell from "./NotificationBell";
 
 export default function Navbar() {
   const { user, logout, isAuthenticated, isSupervisor, isAdmin } = useAuth();
@@ -43,6 +44,7 @@ export default function Navbar() {
               </>
             ) : (
               <>
+                <NotificationBell />
                 {isAdmin && (
                   <Link
                     to="/admin"

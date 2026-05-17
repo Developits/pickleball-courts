@@ -1,5 +1,6 @@
 import { adminOnly } from "../utils/auth";
 import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
+import { sendNotification, NOTIFICATION_TYPES } from "../utils/notifications";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -29,6 +30,15 @@ export async function onRequestPost(context) {
       await env.DB.prepare(`
         UPDATE users SET is_approved = TRUE WHERE id = ?
       `).bind(user_id).run();
+      
+      // Send notification
+      await sendNotification(
+        env,
+        user_id,
+        NOTIFICATION_TYPES.ACCOUNT_APPROVED,
+        "Account Approved!",
+        `Hi ${user.name}! Your account has been approved and you can now use the system.`
+      );
       
       return createSuccessResponse({
         success: true,

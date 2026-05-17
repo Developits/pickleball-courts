@@ -231,17 +231,33 @@ export default function SupervisorDashboard() {
           <div className="grid md:grid-cols-2 gap-6">
             <div className="card">
               <h2 className="text-xl font-semibold mb-3">
-              Waiting Queue ({queue.length})
-            </h2>
-            {queue.length === 0 ? (
-              <p>No players waiting in queue.</p>
-            ) : (
-              queue.map((u, i) => (
-              <div key={i} className="py-1 border-b">
-                {i+1}. {u.name} | {u.game_preference}
-              </div>
-            ))
-            )}
+                Waiting Queue ({queue.length})
+              </h2>
+              {queue.length === 0 ? (
+                <p>No players waiting in queue.</p>
+              ) : (
+                <div className="space-y-2">
+                  {queue.map((player, index) => (
+                    <div key={player.id} className="p-3 border rounded-lg bg-gray-50">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold">{index + 1}. {player.user_name}</span>
+                        <span className="text-xs font-semibold text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                          Priority: {player.priority_score}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-600 mt-1">
+                        {player.game_preference !== 'any' && (
+                          <span className="mr-2">🎮 {player.game_preference}</span>
+                        )}
+                        <span className="mr-2">⚽ {player.total_matches_today} matches today</span>
+                        {player.in_sit_out_period && (
+                          <span className="text-orange-600">⏳ In sit-out period</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="card">
               <h2 className="text-xl font-semibold mb-3">
