@@ -145,7 +145,7 @@ export default function PlayerDashboard() {
                   <div className="border-2 border-gray-300 rounded-lg overflow-hidden" style={{ maxWidth: '320px' }}>
                     <Scanner
                       onScan={handleScan}
-                      onError={(error) => console.error("Scanner error:", error)
+                      onError={(error) => console.error("Scanner error:", error)}
                     />
                   </div>
                   <button
