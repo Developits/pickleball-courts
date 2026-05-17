@@ -115,6 +115,8 @@ export async function onRequestPost(context) {
       gameType
     ).run();
     
+    console.log("Match created with ID:", result.meta.last_row_id);
+    
     // Update court status
     await env.DB.prepare(`
       UPDATE courts SET status = 'occupied', current_match_id = ?

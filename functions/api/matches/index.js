@@ -38,6 +38,8 @@ export async function onRequestGet(context) {
       ORDER BY m.started_at DESC
     `).all();
     
+    console.log("Found matches:", matches.results);
+    
     const courts = await env.DB.prepare(`
       SELECT * FROM courts ORDER BY id
     `).all();
