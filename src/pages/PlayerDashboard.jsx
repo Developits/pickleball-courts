@@ -36,18 +36,22 @@ export default function PlayerDashboard() {
     }
   };
 
-  const handleScan = async (rawValue) => {
-    console.log("handleScan called with value:", rawValue);
+  const handleScan = async (scannedData) => {
+    console.log("handleScan called with data:", scannedData);
     setMessage("");
+    
+    // The Scanner returns an array of results, extract the rawValue
+    const rawValue = Array.isArray(scannedData) ? scannedData[0]?.rawValue : scannedData;
     
     if (!rawValue) {
       setMessage("No QR code detected");
       return;
     }
     
+    console.log("Extracted raw value:", rawValue);
+    
     // Just use the raw value as the token!
     const token = rawValue;
-    console.log("Using token:", token);
     
     try {
       const response = await fetch("/api/qr/validate", {
