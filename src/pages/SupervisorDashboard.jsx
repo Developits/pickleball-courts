@@ -16,42 +16,66 @@ export default function SupervisorDashboard() {
   const loadAllData = async () => {
     try {
       const token = localStorage.getItem('auth_token');
+      console.log('Loading data with token:', !!token);
       
-      // Fetch data with individual error handling
-      const [courtsRes, queueRes, matchesRes, checkinsRes] = await Promise.all([
-        fetch('/api/court/list').then(async (r) => {
-          if (!r.ok) throw new Error(`Court API failed: ${r.statusText}`);
-          return r.json();
-        }),
-        fetch('/api/queue', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }).then(async (r) => {
-          if (!r.ok) throw new Error(`Queue API failed: ${r.statusText}`);
-          return r.json();
-        }),
-        fetch('/api/matches').then(async (r) => {
-          if (!r.ok) throw new Error(`Matches API failed: ${r.statusText}`);
-          return r.json();
-        }),
-        fetch('/api/checkin/list', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }).then(async (r) => {
-          if (!r.ok) throw new Error(`Checkins API failed: ${r.statusText}`);
-          return r.json();
-        })
-      ]);
-
-      console.log('API responses:', { courtsRes, queueRes, matchesRes, checkinsRes });
-
-      if (courtsRes.courts) setCourts(courtsRes.courts);
-      if (queueRes.queue) setQueue(queueRes.queue);
-      if (matchesRes.matches) setMatches(matchesRes.matches);
-      if (checkinsRes.checked_in_players) {
-        setCheckedInPlayers(checkinsRes.checked_in_players);
-        console.log('Set checked-in players:', checkinsRes.checked_in_players);
+      // Load courts first
+      try {
+        const courtsResponse = await fetch('/api/court/list');
+        console.log('Courts API response status:', courtsResponse.status);
+        const courtsData = await courtsResponse.json();
+        console.log('Courts API data:', courtsData);
+        if (courtsData.courts) {
+          setCourts(courtsData.courts);
+        }
+      } catch (err) {
+        console.error('Courts API error:', err);
       }
+
+      // Load queue
+      try {
+        const queueResponse = await fetch('/api/queue', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        console.log('Queue API response status:', queueResponse.status);
+        const queueData = await queueResponse.json();
+        console.log('Queue API data:', queueData);
+        if (queueData.queue) {
+          setQueue(queueData.queue);
+        }
+      } catch (err) {
+        console.error('Queue API error:', err);
+      }
+
+      // Load check-ins
+      try {
+        const checkinsResponse = await fetch('/api/checkin/list', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        console.log('Checkins API response status:', checkinsResponse.status);
+        const checkinsData = await checkinsResponse.json();
+        console.log('Checkins API data:', checkinsData);
+        if (checkinsData.checked_in_players) {
+          setCheckedInPlayers(checkinsData.checked_in_players);
+        }
+      } catch (err) {
+        console.error('Checkins API error:', err);
+      }
+
+      // Load matches
+      try {
+        const matchesResponse = await fetch('/api/matches');
+        console.log('Matches API response status:', matchesResponse.status);
+        const matchesData = await matchesResponse.json();
+        console.log('Matches API data:', matchesData);
+        if (matchesData.matches) {
+          setMatches(matchesData.matches);
+        }
+      } catch (err) {
+        console.error('Matches API error:', err);
+      }
+      
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Global error loading data:', error);
     }
   };
 
