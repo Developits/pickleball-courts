@@ -16,19 +16,40 @@ export default function SupervisorDashboard() {
   const loadAllData = async () => {
     try {
       const token = localStorage.getItem('auth_token');
+      
+      // Fetch data with individual error handling
       const [courtsRes, queueRes, matchesRes, checkinsRes] = await Promise.all([
-        fetch('/api/court/list').then(r => r.json()),
-        fetch('/api/queue').then(r => r.json()),
-        fetch('/api/matches').then(r => r.json()),
+        fetch('/api/court/list').then(async (r) => {
+          if (!r.ok) throw new Error(`Court API failed: ${r.statusText}`);
+          return r.json();
+        }),
+        fetch('/api/queue', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).then(async (r) => {
+          if (!r.ok) throw new Error(`Queue API failed: ${r.statusText}`);
+          return r.json();
+        }),
+        fetch('/api/matches').then(async (r) => {
+          if (!r.ok) throw new Error(`Matches API failed: ${r.statusText}`);
+          return r.json();
+        }),
         fetch('/api/checkin/list', {
           headers: { 'Authorization': `Bearer ${token}` }
-        }).then(r => r.json())
+        }).then(async (r) => {
+          if (!r.ok) throw new Error(`Checkins API failed: ${r.statusText}`);
+          return r.json();
+        })
       ]);
+
+      console.log('API responses:', { courtsRes, queueRes, matchesRes, checkinsRes });
 
       if (courtsRes.courts) setCourts(courtsRes.courts);
       if (queueRes.queue) setQueue(queueRes.queue);
       if (matchesRes.matches) setMatches(matchesRes.matches);
-      if (checkinsRes.checked_in_players) setCheckedInPlayers(checkinsRes.checked_in_players);
+      if (checkinsRes.checked_in_players) {
+        setCheckedInPlayers(checkinsRes.checked_in_players);
+        console.log('Set checked-in players:', checkinsRes.checked_in_players);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -211,7 +232,6 @@ export default function SupervisorDashboard() {
                       <div className="font-medium">{player.name}</div>
                       <div className="text-sm text-gray-600">
                         {player.student_id && <span>ID: {player.student_id} | </span>}
-                        {player.game_preference && <span>{player.game_preference} | </span>}
                         {player.total_matches_today > 0 && <span>{player.total_matches_today} matches today</span>}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">

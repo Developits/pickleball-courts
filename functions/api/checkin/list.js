@@ -20,7 +20,6 @@ export async function onRequestGet(context) {
         u.name,
         u.student_id,
         u.total_matches_today,
-        u.game_preference,
         su.name as checked_in_by_supervisor
       FROM check_ins ci
       JOIN users u ON ci.user_id = u.id
