@@ -31,17 +31,12 @@ export async function onRequestPost(context) {
       VALUES (?, ?, ?)
     `).bind(token, supervisorId, expiresAt).run();
     
-    // Get the origin from the request URL
-    const url = new URL(request.url);
-    const baseUrl = `${url.protocol}//${url.host}`;
-    const scanUrl = `${baseUrl}/api/qr/validate?token=${token}`;
-    
     return createSuccessResponse({
       success: true,
       token: token,
       expires_at: expiresAt,
       expires_in_seconds: expiryMinutes * 60,
-      scan_url: scanUrl,
+      scan_url: token, // Just send the plain token, not a URL
     }, 201);
   } catch (error) {
     console.error("Error generating QR token:", error);

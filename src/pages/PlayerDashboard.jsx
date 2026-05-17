@@ -36,79 +36,45 @@ export default function PlayerDashboard() {
     }
   };
 
-  const handleManualCheckIn = async () => {
+  const handleScan = async (rawValue) => {
+    console.log("handleScan called with value:", rawValue);
+    setMessage("");
+    
+    if (!rawValue) {
+      setMessage("No QR code detected");
+      return;
+    }
+    
+    // Just use the raw value as the token!
+    const token = rawValue;
+    console.log("Using token:", token);
+    
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/checkin", {
+      const response = await fetch("/api/qr/validate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
         },
+        body: JSON.stringify({
+          token: token,
+          user_id: user.id,
+        }),
       });
 
       const data = await response.json();
+      console.log("API Response:", data);
 
-      if (!response.ok) {
-        setMessage(data.error || "Failed to check in");
-        return;
+      if (response.ok) {
+        setMessage("✅ Successfully checked in!");
+        setCheckedIn(true);
+        setScannerActive(false);
+        fetchCheckInStatus();
+      } else {
+        setMessage("❌ " + (data.error || "Failed to check in"));
       }
-
-      setMessage("Successfully checked in!");
-      setCheckedIn(true);
-      fetchCheckInStatus();
     } catch (err) {
-      setMessage("Error checking in");
-    }
-  };
-
-  const handleScan = async (rawValue) => {
-    if (rawValue) {
-      console.log("Scanned:", rawValue);
-      
-      // Parse the QR code URL and extract token from query parameters
-      let token = null;
-      try {
-        const url = new URL(rawValue);
-        token = url.searchParams.get("token");
-        console.log("Extracted token:", token);
-      } catch (e) {
-        console.error("Failed to parse URL:", e);
-        setMessage("Invalid QR code format");
-        return;
-      }
-      
-      if (!token) {
-        setMessage("Invalid QR code - no token found");
-        return;
-      }
-      
-      try {
-        const response = await fetch("/api/qr/validate", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            token: token,
-            user_id: user.id,
-          }),
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          setMessage("Successfully checked in via QR!");
-          setCheckedIn(true);
-          setScannerActive(false);
-          fetchCheckInStatus();
-        } else {
-          setMessage(data.error || "Failed to check in");
-        }
-      } catch (err) {
-        console.error("Error processing QR:", err);
-        setMessage("Error processing QR code");
-      }
+      console.error("Error processing QR:", err);
+      setMessage("Error connecting to server");
     }
   };
 
@@ -127,7 +93,7 @@ export default function PlayerDashboard() {
       
       {/* Check-in Status */}
       <div className="card mb-6">
-        <h3 className="text-xl font-bold mb-4">Check-In Status</h3>
+        <h3 className="text-xl font-bold mb-4">Check-in Status</h3>
         
         {checkedIn ? (
           <div className="bg-green-50 border border-green-200 rounded-lg p-6">
@@ -154,11 +120,11 @@ export default function PlayerDashboard() {
         ) : (
           <div className="space-y-4">
             <p className="text-gray-600">
-              You need to check in before you can join the queue. Use one of the methods below:
+              You need to check in before you can join the queue.
             </p>
             
             {message && (
-              <div className="p-3 bg-red-100 text-red-800 rounded">
+              <div className="p-3 bg-yellow-100 text-yellow-800 rounded">
                 {message}
               </div>
             )}
@@ -179,7 +145,7 @@ export default function PlayerDashboard() {
                   <div className="border-2 border-gray-300 rounded-lg overflow-hidden" style={{ maxWidth: '320px' }}>
                     <Scanner
                       onScan={handleScan}
-                      onError={(error) => console.error("Scanner error:", error)}
+                      onError={(error) => console.error("Scanner error:", error)
                     />
                   </div>
                   <button
