@@ -34,10 +34,10 @@ export async function onRequestGet(context) {
     `).all();
     
     return createSuccessResponse({
-      users: users.results,
+      users: users.results || [],
     });
   } catch (error) {
-    console.error("Error fetching users:", error);
-    return createErrorResponse("Failed to fetch users", 500);
+    console.error("Admin users endpoint error:", error);
+    return createErrorResponse("Failed to fetch users: " + error.message, 500);
   }
 }

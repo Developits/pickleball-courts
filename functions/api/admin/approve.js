@@ -46,7 +46,7 @@ export async function onRequestPost(context) {
       return createErrorResponse("Invalid action. Use 'approve' or 'reject'", 400);
     }
   } catch (error) {
-    console.error("Error approving user:", error);
-    return createErrorResponse("Failed to process user approval", 500);
+    console.error("Approve endpoint error:", error);
+    return createErrorResponse("Failed to process user: " + error.message, 500);
   }
 }
