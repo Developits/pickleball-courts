@@ -7,10 +7,27 @@
 export async function onRequestGet(context) {
   const { request, env } = context;
   
-  // Verify authentication
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader) {
+  // Get token from query parameter or Authorization header
+  const url = new URL(request.url);
+  const token = url.searchParams.get('token') || 
+                request.headers.get("Authorization")?.replace("Bearer ", "");
+  
+  if (!token) {
     return new Response("Unauthorized", { status: 401 });
+  }
+  
+  // Verify the token
+  try {
+    const jwtSecret = env.JWT_SECRET || "development-secret-for-local-only-please-change";
+    const { verifyToken } = await import("../utils/jwt");
+    const payload = await verifyToken(token, jwtSecret);
+    
+    if (!payload) {
+      return new Response("Invalid token", { status: 401 });
+    }
+  } catch (error) {
+    console.error("Token verification error:", error);
+    return new Response("Invalid token", { status: 401 });
   }
   
   // Create a readable stream for SSE

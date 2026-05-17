@@ -4,7 +4,7 @@ import AllUsers from "../components/AllUsers";
 import { useState } from "react";
 
 export default function AdminDashboard() {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("pending");
   const [resetting, setResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState("");
@@ -18,6 +18,7 @@ export default function AdminDashboard() {
     setResetMessage("");
 
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch("/api/admin/daily-reset", {
         method: "POST",
         headers: {
