@@ -10,19 +10,25 @@ export default function SupervisorDashboard() {
   const [courts, setCourts] = useState([]);
   const [queue, setQueue] = useState([]);
   const [matches, setMatches] = useState([]);
+  const [checkedInPlayers, setCheckedInPlayers] = useState([]);
   const [loadingQR, setLoadingQR] = useState(false);
 
   const loadAllData = async () => {
     try {
-      const [courtsRes, queueRes, matchesRes] = await Promise.all([
+      const token = localStorage.getItem('auth_token');
+      const [courtsRes, queueRes, matchesRes, checkinsRes] = await Promise.all([
         fetch('/api/court/list').then(r => r.json()),
         fetch('/api/queue').then(r => r.json()),
-        fetch('/api/matches').then(r => r.json())
+        fetch('/api/matches').then(r => r.json()),
+        fetch('/api/checkin/list', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).then(r => r.json())
       ]);
 
       if (courtsRes.courts) setCourts(courtsRes.courts);
       if (queueRes.queue) setQueue(queueRes.queue);
       if (matchesRes.matches) setMatches(matchesRes.matches);
+      if (checkinsRes.checked_in_players) setCheckedInPlayers(checkinsRes.checked_in_players);
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -193,10 +199,31 @@ export default function SupervisorDashboard() {
             )}
             </div>
             <div className="card">
-              <h2 className="text-xl font-semibold mb-3">Operations</h2>
-              <p className="text-xs mt-2 text-gray-500">
-                Auto Assign Players To Free Courts
-            </p>
+              <h2 className="text-xl font-semibold mb-3">
+                Checked-in Players ({checkedInPlayers.length})
+              </h2>
+              {checkedInPlayers.length === 0 ? (
+                <p>No players checked in yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {checkedInPlayers.map((player) => (
+                    <div key={player.id} className="border-b pb-2">
+                      <div className="font-medium">{player.name}</div>
+                      <div className="text-sm text-gray-600">
+                        {player.student_id && <span>ID: {player.student_id} | </span>}
+                        {player.game_preference && <span>{player.game_preference} | </span>}
+                        {player.total_matches_today > 0 && <span>{player.total_matches_today} matches today</span>}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Checked in: {new Date(player.checked_in_at).toLocaleTimeString()}
+                        {player.is_manual && player.checked_in_by_supervisor && (
+                          <span className="text-orange-600"> (by supervisor: {player.checked_in_by_supervisor})</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
