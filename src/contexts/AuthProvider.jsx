@@ -9,17 +9,17 @@ export default function AuthProvider({ children }) {
     const initAuth = async () => {
       const token = localStorage.getItem("auth_token");
       const savedUser = localStorage.getItem("user");
-      
+
       if (token && savedUser) {
         try {
           const response = await fetch("/api/auth/validate", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`,
+              Authorization: `Bearer ${token}`,
             },
           });
-          
+
           if (response.ok) {
             const data = await response.json();
             setUser(data.user);
@@ -76,21 +76,21 @@ export default function AuthProvider({ children }) {
 
   const logout = async () => {
     const token = localStorage.getItem("auth_token");
-    
+
     if (token) {
       try {
         await fetch("/api/auth/logout", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
         });
       } catch (error) {
         console.error("Logout request failed:", error);
       }
     }
-    
+
     localStorage.removeItem("auth_token");
     localStorage.removeItem("user");
     setUser(null);
