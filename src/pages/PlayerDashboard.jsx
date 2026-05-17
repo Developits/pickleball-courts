@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { QrScanner } from '@yudiel/react-qr-scanner';
+import { Scanner } from '@yudiel/react-qr-scanner';
 
 export default function PlayerDashboard() {
   const { user } = useAuth();
@@ -62,15 +62,19 @@ export default function PlayerDashboard() {
     }
   };
 
-  const handleScan = async (result) => {
-    if (result && result.length > 0) {
-      const rawValue = result[0].rawValue;
+  const handleScan = async (rawValue) => {
+    if (rawValue) {
       console.log("Scanned:", rawValue);
       
       // Parse the QR code URL
-      const url = new URL(rawValue);
-      const pathParts = url.pathname.split('/');
-      const token = pathParts[pathParts.length - 1];
+      let token = rawValue;
+      try {
+        const url = new URL(rawValue);
+        const pathParts = url.pathname.split('/');
+        token = pathParts[pathParts.length - 1];
+      } catch (e) {
+        // If it's not a URL, use the raw value as the token
+      }
       
       if (token && token !== 'validate') {
         try {
@@ -167,7 +171,7 @@ export default function PlayerDashboard() {
               ) : (
                 <div className="space-y-4">
                   <div className="border-2 border-gray-300 rounded-lg overflow-hidden" style={{ maxWidth: '320px' }}>
-                    <QrScanner
+                    <Scanner
                       onScan={handleScan}
                       onError={(error) => console.error("Scanner error:", error)}
                     />

@@ -1,7 +1,7 @@
 import { useAuth } from "../hooks/useAuth";
 import PendingUsers from "../components/PendingUsers";
 import { useState } from "react";
-import QRCode from 'qrcode.react';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function SupervisorDashboard() {
   const { user } = useAuth();
@@ -105,7 +105,7 @@ export default function SupervisorDashboard() {
                   <div className="flex flex-col items-center">
                     <h4 className="text-lg font-bold mb-4">Scan to Check In</h4>
                     <div className="bg-white p-4 rounded-lg shadow-md mb-4">
-                      <QRCode 
+                      <QRCodeSVG 
                         value={`${qrData.scan_url}`} 
                         size={256} 
                         level="H"
