@@ -3,11 +3,22 @@ compatibility_date = "2026-05-16"
 pages_build_output_dir = "./dist"
 compatibility_flags = ["nodejs_compat"]
 
+# Deployment configuration
+[vars]
+# Environment variables go here (not secrets)
+
 [[d1_databases]]
 binding = "DB" # This is how we'll access the database in our code
 database_name = "pickleball-courts"
 database_id = "d70a574a-bcdb-44d0-b1c7-d3784e8d4651" # Replace this with your actual ID!
 
 # Secrets to set with wrangler secret put:
-# JWT_SECRET - Secret key for JWT token generation
-# CLOUDFLARE_ACCOUNT_ID - Your Cloudflare account ID
+# JWT_SECRET - Secret key for JWT token generation (minimum 32 characters)
+# Example: wrangler secret put JWT_SECRET
+
+# Note: Before deploying, make sure you:
+# 1. Have your Cloudflare account set up
+# 2. Have created the D1 database (wrangler d1 create pickleball-courts)
+# 3. Updated the database_id above with your actual database ID
+# 4. Set the JWT_SECRET secret
+# 5. Run init-db.sql on your remote database!
