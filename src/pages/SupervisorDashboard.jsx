@@ -15,6 +15,7 @@ export default function SupervisorDashboard() {
   const [message, setMessage] = useState("");
   const [isAutoAssigning, setIsAutoAssigning] = useState(false);
   const [endingMatch, setEndingMatch] = useState(null);
+  const [cancelingMatch, setCancelingMatch] = useState(null);
 
   const loadAllData = async () => {
     try {
@@ -176,6 +177,36 @@ export default function SupervisorDashboard() {
       setMessage("Error connecting to server");
     } finally {
       setEndingMatch(null);
+    }
+  };
+
+  const cancelMatch = async (matchId) => {
+    setCancelingMatch(matchId);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/matches/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          match_id: matchId
+        })
+      });
+      
+      const data = await response.json();
+      if (response.ok) {
+        setMessage("✅ " + data.message);
+        loadAllData();
+      } else {
+        setMessage("❌ " + (data.error || "Failed to cancel match"));
+      }
+    } catch (err) {
+      console.error("Error canceling match:", err);
+      setMessage("Error connecting to server");
+    } finally {
+      setCancelingMatch(null);
     }
   };
 
@@ -388,17 +419,24 @@ export default function SupervisorDashboard() {
                     <div className="flex gap-3">
                       <button
                         onClick={() => endMatch(match.id, 1)}
-                        disabled={endingMatch === match.id}
+                        disabled={endingMatch === match.id || cancelingMatch === match.id}
                         className="btn btn-secondary flex-1"
                       >
                         {endingMatch === match.id ? 'Ending...' : 'Team 1 Wins'}
                       </button>
                       <button
                         onClick={() => endMatch(match.id, 2)}
-                        disabled={endingMatch === match.id}
+                        disabled={endingMatch === match.id || cancelingMatch === match.id}
                         className="btn btn-secondary flex-1"
                       >
                         {endingMatch === match.id ? 'Ending...' : 'Team 2 Wins'}
+                      </button>
+                      <button
+                        onClick={() => cancelMatch(match.id)}
+                        disabled={endingMatch === match.id || cancelingMatch === match.id}
+                        className="btn btn-danger flex-1"
+                      >
+                        {cancelingMatch === match.id ? 'Canceling...' : 'Cancel Match'}
                       </button>
                     </div>
                   </div>
