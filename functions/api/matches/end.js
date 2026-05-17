@@ -12,7 +12,7 @@ export async function onRequestPost(context) {
     }
     
     const body = await request.json();
-    const { match_id, winner_team } = body;
+    const { match_id, winner_team, score } = body;
     
     if (!match_id || !winner_team) {
       return createErrorResponse("Missing required fields", 400);
@@ -44,10 +44,11 @@ export async function onRequestPost(context) {
       ? [match.team1_player1_id, match.team1_player2_id]
       : [match.team2_player1_id, match.team2_player2_id];
     
+    // Update match with winner and optional score
     await env.DB.prepare(`
-      UPDATE matches SET ended_at = CURRENT_TIMESTAMP, winner_team = ?
+      UPDATE matches SET ended_at = CURRENT_TIMESTAMP, winner_team = ?, score = ?
       WHERE id = ?
-    `).bind(winner_team, match_id).run();
+    `).bind(winner_team, score || null, match_id).run();
     
     await env.DB.prepare(`
       UPDATE courts SET status = 'available', current_match_id = NULL
@@ -94,10 +95,11 @@ export async function onRequestPost(context) {
       success: true,
       message: "Match ended successfully",
       winner_team: winner_team,
+      score: score,
       sit_out_for: loserTeamPlayerIds,
     });
   } catch (error) {
     console.error("Error ending match:", error);
-    return createErrorResponse("Failed to end match", 500);
+    return createErrorResponse("Failed to end match: " + error.message, 500);
   }
 }

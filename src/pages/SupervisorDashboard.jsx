@@ -16,6 +16,10 @@ export default function SupervisorDashboard() {
   const [isAutoAssigning, setIsAutoAssigning] = useState(false);
   const [endingMatch, setEndingMatch] = useState(null);
   const [cancelingMatch, setCancelingMatch] = useState(null);
+  const [showScoreModal, setShowScoreModal] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [selectedWinner, setSelectedWinner] = useState(null);
+  const [matchScore, setMatchScore] = useState("");
 
   const loadAllData = async () => {
     try {
@@ -149,8 +153,19 @@ export default function SupervisorDashboard() {
     }
   };
 
-  const endMatch = async (matchId, winnerTeam) => {
-    setEndingMatch(matchId);
+  const handleEndMatchClick = (match, winnerTeam) => {
+    setSelectedMatch(match);
+    setSelectedWinner(winnerTeam);
+    setMatchScore("");
+    setShowScoreModal(true);
+  };
+
+  const submitEndMatch = async () => {
+    if (!selectedMatch || !selectedWinner) return;
+    
+    setEndingMatch(selectedMatch.id);
+    setShowScoreModal(false);
+    
     try {
       const token = localStorage.getItem('auth_token');
       const response = await fetch('/api/matches/end', {
@@ -160,14 +175,15 @@ export default function SupervisorDashboard() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          match_id: matchId,
-          winner_team: winnerTeam
+          match_id: selectedMatch.id,
+          winner_team: selectedWinner,
+          score: matchScore || null
         })
       });
       
       const data = await response.json();
       if (response.ok) {
-        setMessage("✅ " + data.message);
+        setMessage("✅ " + data.message + (matchScore ? ` (Score: ${matchScore})` : ''));
         loadAllData();
       } else {
         setMessage("❌ " + (data.error || "Failed to end match"));
@@ -177,6 +193,8 @@ export default function SupervisorDashboard() {
       setMessage("Error connecting to server");
     } finally {
       setEndingMatch(null);
+      setSelectedMatch(null);
+      setSelectedWinner(null);
     }
   };
 
@@ -238,6 +256,45 @@ export default function SupervisorDashboard() {
       {message && (
         <div className="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
           {message}
+        </div>
+      )}
+
+      {/* Score Input Modal */}
+      {showScoreModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold mb-4">Enter Match Score</h3>
+            <p className="mb-4">
+              {selectedMatch && `Winner: ${selectedWinner === 1 ? 'Team 1' : 'Team 2'}`}
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">
+                Score (optional, e.g., "11-8, 9-11, 11-7")
+              </label>
+              <input
+                type="text"
+                value={matchScore}
+                onChange={(e) => setMatchScore(e.target.value)}
+                placeholder="11-8"
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={submitEndMatch}
+                className="btn btn-primary flex-1"
+              >
+                Confirm & End Match
+              </button>
+              <button
+                onClick={() => setShowScoreModal(false)}
+                className="btn btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -418,14 +475,14 @@ export default function SupervisorDashboard() {
                     
                     <div className="flex gap-3">
                       <button
-                        onClick={() => endMatch(match.id, 1)}
+                        onClick={() => handleEndMatchClick(match, 1)}
                         disabled={endingMatch === match.id || cancelingMatch === match.id}
                         className="btn btn-secondary flex-1"
                       >
                         {endingMatch === match.id ? 'Ending...' : 'Team 1 Wins'}
                       </button>
                       <button
-                        onClick={() => endMatch(match.id, 2)}
+                        onClick={() => handleEndMatchClick(match, 2)}
                         disabled={endingMatch === match.id || cancelingMatch === match.id}
                         className="btn btn-secondary flex-1"
                       >
