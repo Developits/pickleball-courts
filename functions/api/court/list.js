@@ -1,4 +1,4 @@
-import { createSuccessResponse, createErrorResponse } from '../../utils/jwt';
+import { createSuccessResponse, createErrorResponse } from '../utils/jwt';
 
 export async function onRequestGet(context) {
   const { request, env } = context;

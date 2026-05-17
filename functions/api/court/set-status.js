@@ -1,5 +1,5 @@
-import { supervisorOrAdmin } from '../../utils/auth';
-import { createSuccessResponse, createErrorResponse } from '../../utils/jwt';
+import { supervisorOrAdmin } from '../utils/auth';
+import { createSuccessResponse, createErrorResponse } from '../utils/jwt';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
