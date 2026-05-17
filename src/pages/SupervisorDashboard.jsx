@@ -59,7 +59,9 @@ export default function SupervisorDashboard() {
 
       // Load matches
       try {
-        const matchesResponse = await fetch('/api/matches');
+        const matchesResponse = await fetch('/api/matches', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         const matchesData = await matchesResponse.json();
         console.log("Matches API response:", matchesData);
         if (matchesData.matches) {
