@@ -125,6 +125,7 @@ CREATE TABLE matches (
   started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   ended_at DATETIME,
   winner_team INTEGER,
+  score TEXT,
   FOREIGN KEY (court_id) REFERENCES courts(id)
 );
 
@@ -132,6 +133,22 @@ CREATE INDEX idx_matches_court_id ON matches(court_id);
 CREATE INDEX idx_matches_started_at ON matches(started_at);
 CREATE INDEX idx_matches_ended_at ON matches(ended_at);
 CREATE INDEX idx_matches_game_type ON matches(game_type);
+
+-- Notifications Table
+CREATE TABLE notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  type TEXT NOT NULL, -- 'info', 'warning', 'success', 'match', 'team_invite', 'account_approved'
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX idx_notifications_created_at ON notifications(created_at);
 
 -- System Settings Table (All rules configurable here)
 CREATE TABLE settings (

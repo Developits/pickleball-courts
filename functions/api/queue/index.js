@@ -1,11 +1,18 @@
 import { authenticateRequest } from "../utils/auth";
 import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
 import { calculatePriorityScore, isInSitOutPeriod } from "../utils/queue";
+import { applyRateLimit, clearRateLimit } from "../utils/rateLimit";
 
 export async function onRequestGet(context) {
   const { request, env } = context;
   
   try {
+    // Apply rate limiting (15 requests per minute per user)
+    const rateLimitResult = await applyRateLimit(request, env, { key: 'queue', max: 15, windowSeconds: 60 });
+    if (rateLimitResult.error) {
+      return rateLimitResult.error;
+    }
+    
     const authResult = await authenticateRequest(request, env);
     
     if (!authResult.authenticated) {

@@ -46,6 +46,56 @@ export function createRateLimiter(maxRequests = 5, windowMs = 60000) {
   };
 }
 
+export async function applyRateLimit(request, env, options = {}) {
+  const { key = 'default', max = 10, windowSeconds = 60 } = options;
+  const ip = request.headers.get("CF-Connecting-IP") || 
+             request.headers.get("X-Forwarded-For") || 
+             "unknown";
+  
+  const now = Date.now();
+  const windowMs = windowSeconds * 1000;
+  const storeKey = `${ip}:${key}`;
+  
+  if (!rateLimitStore.has(storeKey)) {
+    rateLimitStore.set(storeKey, {
+      count: 0,
+      resetTime: now + windowMs,
+    });
+  }
+  
+  const record = rateLimitStore.get(storeKey);
+  
+  if (now > record.resetTime) {
+    record.count = 0;
+    record.resetTime = now + windowMs;
+  }
+  
+  record.count++;
+  
+  if (record.count > max) {
+    const headers = new Headers();
+    headers.set("Content-Type", "application/json");
+    headers.set("Retry-After", Math.ceil(windowMs / 1000).toString());
+    
+    return {
+      error: new Response(
+        JSON.stringify({ error: "Too many requests. Please try again later." }),
+        { status: 429, headers }
+      )
+    };
+  }
+  
+  return { error: null };
+}
+
+export function clearRateLimit(request, key) {
+  const ip = request.headers.get("CF-Connecting-IP") || 
+             request.headers.get("X-Forwarded-For") || 
+             "unknown";
+  const storeKey = `${ip}:${key}`;
+  rateLimitStore.delete(storeKey);
+}
+
 export function getRateLimitHeaders(result) {
   const headers = new Headers();
   headers.set("X-RateLimit-Remaining", result.remaining.toString());

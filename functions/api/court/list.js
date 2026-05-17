@@ -1,9 +1,23 @@
+import { authenticateRequest } from '../utils/auth';
 import { createSuccessResponse, createErrorResponse } from '../utils/jwt';
+import { applyRateLimit, clearRateLimit } from '../utils/rateLimit';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
 
   try {
+    // Apply rate limiting (10 requests per minute per user)
+    const rateLimitResult = await applyRateLimit(request, env, { key: 'courts', max: 10, windowSeconds: 60 });
+    if (rateLimitResult.error) {
+      return rateLimitResult.error;
+    }
+
+    // Authenticate user
+    const authResult = await authenticateRequest(request, env);
+    if (!authResult.authenticated) {
+      return authResult.error;
+    }
+
     const courts = await env.DB.prepare(
       `SELECT * FROM courts ORDER BY id ASC`
     ).all();
