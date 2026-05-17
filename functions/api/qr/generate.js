@@ -26,7 +26,7 @@ export async function onRequestPost(context) {
       DELETE FROM qr_tokens WHERE expires_at < datetime('now')
     `).run();
     
-    const result = await env.DB.prepare(`
+    await env.DB.prepare(`
       INSERT INTO qr_tokens (token, supervisor_id, expires_at)
       VALUES (?, ?, ?)
     `).bind(token, supervisorId, expiresAt).run();

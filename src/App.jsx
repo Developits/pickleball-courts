@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import AuthProvider from "./contexts/AuthProvider";
 import Navbar from "./components/Navbar";
 import ErrorBoundary from "./components/ErrorBoundary";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -30,14 +31,30 @@ function AppContent() {
       <Navbar />
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/dashboard" element={<PlayerDashboard />} />
-          <Route path="/supervisor" element={<SupervisorDashboard />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/rules" element={<Rules />} />
-        </Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/rules" element={<Rules />} />
+            
+            {/* Protected Routes */}
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <PlayerDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/supervisor" element={
+              <ProtectedRoute requireRole="supervisor">
+                <SupervisorDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin" element={
+              <ProtectedRoute requireRole="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+          </Routes>
       </div>
     </>
   );
