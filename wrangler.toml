@@ -1,0 +1,13 @@
+name = "pickleball-courts"
+compatibility_date = "2026-05-16"
+pages_build_output_dir = "./dist"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB" # This is how we'll access the database in our code
+database_name = "pickleball-courts"
+database_id = "d70a574a-bcdb-44d0-b1c7-d3784e8d4651" # Replace this with your actual ID!
+
+# Secrets to set with wrangler secret put:
+# JWT_SECRET - Secret key for JWT token generation
+# CLOUDFLARE_ACCOUNT_ID - Your Cloudflare account ID
