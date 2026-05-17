@@ -134,19 +134,59 @@ export default function SupervisorDashboard() {
     }
   };
 
-  const changeCourtState = async (courtId, status) => {
+  const changeCourtState = async (courtId, action) => {
     const token = localStorage.getItem('auth_token');
-    fetch('/api/court/set-status', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        courtId,
-        status
-      })
-    }).then(() => loadAllData());
+    
+    if (action === 'reserve') {
+      try {
+        const response = await fetch('/api/court/reserve', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            court_id: courtId,
+            reserved_for: 'Chinese Students'
+          })
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+          setMessage("✅ " + data.message);
+          loadAllData();
+        } else {
+          setMessage("❌ " + (data.error || "Failed to reserve court"));
+        }
+      } catch (err) {
+        console.error("Error reserving court:", err);
+        setMessage("Error connecting to server");
+      }
+    } else if (action === 'unreserve') {
+      try {
+        const response = await fetch('/api/court/unreserve', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            court_id: courtId
+          })
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+          setMessage("✅ Court released from reservation");
+          loadAllData();
+        } else {
+          setMessage("❌ " + (data.error || "Failed to release reservation"));
+        }
+      } catch (err) {
+        console.error("Error unreserving court:", err);
+        setMessage("Error connecting to server");
+      }
+    }
   };
 
   const autoAssignMatch = async () => {
@@ -269,7 +309,14 @@ export default function SupervisorDashboard() {
     if (court.status === 'available') {
       return <span className="text-green-600 font-bold">Free</span>;
     } else if (court.status === 'reserved') {
-      return <span className="text-red-600 font-bold">Reserved</span>;
+      return (
+        <div>
+          <span className="text-orange-600 font-bold">Reserved</span>
+          {court.reserved_for && (
+            <div className="text-xs text-gray-600">for {court.reserved_for}</div>
+          )}
+        </div>
+      );
     } else {
       return <span className="text-gray-600">In Use</span>;
     }
@@ -417,20 +464,27 @@ export default function SupervisorDashboard() {
                   <p className="text-sm mb-3">
                     Status: {getCourtStatusBadge(court)}
                   </p>
-                  <div className="flex flex-col gap-2">
+                  {court.status === 'available' && (
                     <button
-                      onClick={() => changeCourtState(court.id, 'available')}
-                      className="btn btn-secondary text-sm"
+                      onClick={() => changeCourtState(court.id, 'reserve')}
+                      className="btn btn-warning w-full text-sm"
                     >
-                      Set Free
+                      Reserve For Chinese Students
                     </button>
+                  )}
+                  {court.status === 'reserved' && (
                     <button
-                      onClick={() => changeCourtState(court.id, 'reserved')}
-                      className="btn btn-danger text-sm"
+                      onClick={() => changeCourtState(court.id, 'unreserve')}
+                      className="btn btn-secondary w-full text-sm"
                     >
-                      Reserve For Chinese
+                      Release Reservation
                     </button>
-                  </div>
+                  )}
+                  {court.status === 'occupied' && (
+                    <p className="text-sm text-gray-500 italic">
+                      Court in use
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

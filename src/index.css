@@ -17,6 +17,10 @@
   @apply bg-red-500 text-white hover:bg-red-600;
 }
 
+.btn-warning {
+  @apply bg-orange-500 text-white hover:bg-orange-600;
+}
+
 .card {
   @apply bg-white rounded-lg shadow-md p-6;
 }

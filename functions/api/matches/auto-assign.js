@@ -13,10 +13,13 @@ export async function onRequestPost(context) {
       return authResult.error;
     }
     
-    // Get available courts
+    // Get available courts (exclude reserved courts)
     const availableCourts = await env.DB.prepare(`
       SELECT * FROM courts WHERE status = 'available'
     `).all();
+    
+    // Reserved courts (status = 'reserved') are automatically excluded
+    // These courts are kept empty for special purposes (e.g., Chinese students)
     
     if (availableCourts.results.length === 0) {
       return createErrorResponse("No available courts", 400);
