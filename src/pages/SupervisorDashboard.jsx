@@ -61,8 +61,10 @@ export default function SupervisorDashboard() {
       try {
         const matchesResponse = await fetch('/api/matches');
         const matchesData = await matchesResponse.json();
+        console.log("Matches API response:", matchesData);
         if (matchesData.matches) {
           setMatches(matchesData.matches);
+          console.log("Set matches state to:", matchesData.matches);
         }
       } catch (err) {
         console.error('Matches API error:', err);
