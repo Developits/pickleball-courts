@@ -41,6 +41,8 @@ export default function Profile() {
         setStats(data.data.stats);
         setEditName(data.data.user.name);
         setEditGender(data.data.user.gender);
+      } else {
+        setMessage({ type: "error", text: data.error || "Failed to load profile" });
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -69,13 +71,6 @@ export default function Profile() {
         setStats(data.data.stats);
         setIsEditing(false);
         setMessage({ type: "success", text: "Profile updated successfully!" });
-        // Update auth context user info
-        const authContext = JSON.parse(localStorage.getItem("authContext"));
-        if (authContext) {
-          authContext.user.name = editName;
-          localStorage.setItem("authContext", JSON.stringify(authContext));
-          window.location.reload(); // Refresh to update Navbar
-        }
       } else {
         setMessage({ type: "error", text: data.error || "Failed to update profile" });
       }
@@ -174,8 +169,16 @@ export default function Profile() {
                       <p className="text-lg text-gray-900">{profile?.studentId}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Email</label>
-                      <p className="text-lg text-gray-900">{profile?.email}</p>
+                      <label className="text-sm font-medium text-gray-500">Department</label>
+                      <p className="text-lg text-gray-900">{profile?.department}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Degree</label>
+                      <p className="text-lg text-gray-900">{profile?.degree}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Year</label>
+                      <p className="text-lg text-gray-900">{profile?.year}</p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-500">Gender</label>

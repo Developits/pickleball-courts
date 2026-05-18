@@ -13,7 +13,7 @@ export async function onRequestGet(context) {
     
     const userId = authResult.user.userId;
     
-    const user = await env.DB.prepare("SELECT id, student_id, name, role, gender, email, created_at FROM users WHERE id = ?")
+    const user = await env.DB.prepare("SELECT id, student_id, name, role, gender, department, degree, year, created_at FROM users WHERE id = ?")
       .bind(userId)
       .first();
     
@@ -50,7 +50,9 @@ export async function onRequestGet(context) {
         name: user.name,
         role: user.role,
         gender: user.gender,
-        email: user.email,
+        department: user.department,
+        degree: user.degree,
+        year: user.year,
         createdAt: user.created_at
       },
       stats: {
@@ -92,7 +94,7 @@ export async function onRequestPut(context) {
       .bind(name, gender, userId)
       .run();
     
-    const user = await env.DB.prepare("SELECT id, student_id, name, role, gender, email, created_at FROM users WHERE id = ?")
+    const user = await env.DB.prepare("SELECT id, student_id, name, role, gender, department, degree, year, created_at FROM users WHERE id = ?")
       .bind(userId)
       .first();
     
@@ -125,7 +127,9 @@ export async function onRequestPut(context) {
         name: user.name,
         role: user.role,
         gender: user.gender,
-        email: user.email,
+        department: user.department,
+        degree: user.degree,
+        year: user.year,
         createdAt: user.created_at
       },
       stats: {
