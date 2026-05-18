@@ -1,0 +1,232 @@
+import { useState, useEffect } from "react";
+import { useAuth } from "../hooks/useAuth";
+
+export default function Profile() {
+  const { user: authUser } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editGender, setEditGender] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState(null);
+
+  const getUserInitials = (name) => {
+    if (!name) return "??";
+    const nameParts = name.split(" ");
+    if (nameParts.length >= 2) {
+      return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+    }
+    return name[0].toUpperCase();
+  };
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/profile", {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setProfile(data.data.user);
+        setStats(data.data.stats);
+        setEditName(data.data.user.name);
+        setEditGender(data.data.user.gender);
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      setMessage({ type: "error", text: "Failed to load profile" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setMessage(null);
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/profile", {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ name: editName, gender: editGender })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setProfile(data.data.user);
+        setStats(data.data.stats);
+        setIsEditing(false);
+        setMessage({ type: "success", text: "Profile updated successfully!" });
+        // Update auth context user info
+        const authContext = JSON.parse(localStorage.getItem("authContext"));
+        if (authContext) {
+          authContext.user.name = editName;
+          localStorage.setItem("authContext", JSON.stringify(authContext));
+          window.location.reload(); // Refresh to update Navbar
+        }
+      } else {
+        setMessage({ type: "error", text: data.error || "Failed to update profile" });
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      setMessage({ type: "error", text: "Failed to update profile" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-green-500 border-t-transparent"></div>
+          <p className="mt-4 text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto py-8">
+      <h1 className="text-3xl font-bold mb-8 text-gray-900">Your Profile</h1>
+
+      {message && (
+        <div className={`mb-6 p-4 rounded-lg ${message.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+          {message.text}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Personal Info Card */}
+        <div className="lg:col-span-2">
+          <div className="card bg-white">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Personal Information</h2>
+              <button
+                onClick={() => isEditing ? setIsEditing(false) : setIsEditing(true)}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              >
+                {isEditing ? "Cancel" : "Edit Profile"}
+              </button>
+            </div>
+
+            <div className="flex items-start gap-6">
+              {/* Avatar */}
+              <div className="flex-shrink-0">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-4xl font-bold text-white shadow-lg">
+                  {profile && getUserInitials(profile.name)}
+                </div>
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 space-y-4">
+                {isEditing ? (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                      <select
+                        value={editGender}
+                        onChange={(e) => setEditGender(e.target.value)}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      >
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                    >
+                      {saving ? "Saving..." : "Save Changes"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Full Name</label>
+                      <p className="text-lg text-gray-900">{profile?.name}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Student ID</label>
+                      <p className="text-lg text-gray-900">{profile?.studentId}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Email</label>
+                      <p className="text-lg text-gray-900">{profile?.email}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Gender</label>
+                      <p className="text-lg text-gray-900 capitalize">{profile?.gender}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Member Since</label>
+                      <p className="text-lg text-gray-900">{profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : ""}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Statistics Card */}
+        <div className="lg:col-span-1">
+          <div className="card bg-white">
+            <h2 className="text-2xl font-bold mb-6 text-gray-900">Game Statistics</h2>
+            
+            <div className="space-y-4">
+              {/* Win Rate */}
+              <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl">
+                <p className="text-5xl font-bold text-green-600">{stats?.winRate || 0}%</p>
+                <p className="text-gray-600 mt-1">Win Rate</p>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 bg-gray-50 rounded-xl">
+                  <p className="text-3xl font-bold text-gray-900">{stats?.totalMatches || 0}</p>
+                  <p className="text-sm text-gray-600">Total Matches</p>
+                </div>
+                <div className="text-center p-4 bg-gray-50 rounded-xl">
+                  <p className="text-3xl font-bold text-green-600">{stats?.wins || 0}</p>
+                  <p className="text-sm text-gray-600">Wins</p>
+                </div>
+                <div className="text-center p-4 bg-gray-50 rounded-xl">
+                  <p className="text-3xl font-bold text-red-500">{stats?.losses || 0}</p>
+                  <p className="text-sm text-gray-600">Losses</p>
+                </div>
+                <div className="text-center p-4 bg-gray-50 rounded-xl">
+                  <p className="text-3xl font-bold text-blue-600">{stats?.completedMatches || 0}</p>
+                  <p className="text-sm text-gray-600">Completed</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

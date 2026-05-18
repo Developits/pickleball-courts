@@ -9,7 +9,7 @@ import Register from "./pages/Register";
 import PlayerDashboard from "./pages/PlayerDashboard";
 import SupervisorDashboard from "./pages/SupervisorDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
-import Rules from "./pages/Rules";
+import Profile from "./pages/Profile";
 import { useAuth } from "./hooks/useAuth";
 
 function AppContent() {
@@ -34,12 +34,17 @@ function AppContent() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/rules" element={<Rules />} />
             
             {/* Protected Routes */}
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <PlayerDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <Profile />
               </ProtectedRoute>
             } />
             

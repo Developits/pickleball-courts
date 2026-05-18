@@ -258,6 +258,70 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Rules Section */}
+      <section className="py-16 sm:py-20 lg:py-28 px-4 sm:px-6 bg-gradient-to-b from-white to-gray-50">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-center mb-12 sm:mb-16 text-gray-900 tracking-tight">
+            Official Court Rules
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Rotation Rules */}
+            <div className="card bg-white">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-green-700">
+                <span className="text-2xl">🔄</span>
+                Rotation Rules
+              </h3>
+              <ul className="list-disc pl-6 space-y-2 text-gray-600">
+                <li>Play 1 match, wait 1 full match before playing again</li>
+                <li>Matches are first to 11 points, win by 2</li>
+                <li>After your match ends, leave the court immediately</li>
+              </ul>
+            </div>
+
+            {/* Check-In Rules */}
+            <div className="card bg-white">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-green-700">
+                <span className="text-2xl">🎫</span>
+                Check-In Rules
+              </h3>
+              <ul className="list-disc pl-6 space-y-2 text-gray-600">
+                <li>You must check in at the courts using the dynamic QR code</li>
+                <li>Remote check-ins from dorms are strictly prohibited</li>
+                <li>Check-in expires after 5 minutes if you don't join the queue</li>
+              </ul>
+            </div>
+
+            {/* Queue Rules */}
+            <div className="card bg-white">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-green-700">
+                <span className="text-2xl">🎯</span>
+                Queue Rules
+              </h3>
+              <ul className="list-disc pl-6 space-y-2 text-gray-600">
+                <li>Be ready when your turn is called</li>
+                <li>Missed turn = back of the queue</li>
+                <li>Players arriving after 8:30 PM get priority over those who have played 2+ matches</li>
+              </ul>
+            </div>
+
+            {/* Penalties */}
+            <div className="card bg-white">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-green-700">
+                <span className="text-2xl">⚠️</span>
+                Penalties
+              </h3>
+              <ul className="list-disc pl-6 space-y-2 text-gray-600">
+                <li>1st offense: Warning</li>
+                <li>2nd offense: 1-hour ban</li>
+                <li>3rd offense: 1-day ban</li>
+                <li>Repeated offenses: Permanent ban</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-16 sm:py-24 lg:py-32 px-4 sm:px-6 bg-gradient-to-r from-green-500 to-green-600 relative overflow-hidden">
         {/* Decorative circles */}
