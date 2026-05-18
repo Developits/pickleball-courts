@@ -1,33 +1,26 @@
 import { authenticateRequest } from "../utils/auth";
 import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
-import { applyRateLimit } from "../utils/rateLimit";
 
 export async function onRequestGet(context) {
   const { request, env } = context;
   
   try {
-    // Apply rate limiting
-    const rateLimitResult = await applyRateLimit(request, env, { key: 'profile', max: 30, windowSeconds: 60 });
-    if (rateLimitResult.error) {
-      return rateLimitResult.error;
-    }
-    
     const authResult = await authenticateRequest(request, env);
     
     if (!authResult.authenticated) {
       return authResult.error;
     }
     
-    // Get user info
+    const userId = authResult.user.userId;
+    
     const user = await env.DB.prepare("SELECT id, student_id, name, role, gender, email, created_at FROM users WHERE id = ?")
-      .bind(authResult.user.userId)
+      .bind(userId)
       .first();
     
     if (!user) {
       return createErrorResponse("User not found", 404);
     }
     
-    // Get player statistics
     const statsResult = await env.DB.prepare(`
       SELECT
         COUNT(*) as total_matches,
@@ -38,9 +31,9 @@ export async function onRequestGet(context) {
       FROM matches
       WHERE team1_player1_id = ? OR team1_player2_id = ? OR team2_player1_id = ? OR team2_player2_id = ?
     `).bind(
-      user.id, user.id, user.id, user.id,
-      user.id, user.id, user.id, user.id,
-      user.id, user.id, user.id, user.id
+      userId, userId, userId, userId,
+      userId, userId, userId, userId,
+      userId, userId, userId, userId
     ).first();
     
     const winRate = statsResult.completed_matches > 0 
@@ -75,18 +68,13 @@ export async function onRequestPut(context) {
   const { request, env } = context;
   
   try {
-    // Apply rate limiting
-    const rateLimitResult = await applyRateLimit(request, env, { key: 'profile-update', max: 10, windowSeconds: 60 });
-    if (rateLimitResult.error) {
-      return rateLimitResult.error;
-    }
-    
     const authResult = await authenticateRequest(request, env);
     
     if (!authResult.authenticated) {
       return authResult.error;
     }
     
+    const userId = authResult.user.userId;
     const { name, gender } = await request.json();
     
     if (!name || !gender) {
@@ -97,17 +85,14 @@ export async function onRequestPut(context) {
       return createErrorResponse("Invalid gender value", 400);
     }
     
-    // Update user info
     await env.DB.prepare("UPDATE users SET name = ?, gender = ? WHERE id = ?")
-      .bind(name, gender, authResult.user.userId)
+      .bind(name, gender, userId)
       .run();
     
-    // Get updated user
     const user = await env.DB.prepare("SELECT id, student_id, name, role, gender, email, created_at FROM users WHERE id = ?")
-      .bind(authResult.user.userId)
+      .bind(userId)
       .first();
     
-    // Get updated stats
     const statsResult = await env.DB.prepare(`
       SELECT
         COUNT(*) as total_matches,
@@ -118,9 +103,9 @@ export async function onRequestPut(context) {
       FROM matches
       WHERE team1_player1_id = ? OR team1_player2_id = ? OR team2_player1_id = ? OR team2_player2_id = ?
     `).bind(
-      user.id, user.id, user.id, user.id,
-      user.id, user.id, user.id, user.id,
-      user.id, user.id, user.id, user.id
+      userId, userId, userId, userId,
+      userId, userId, userId, userId,
+      userId, userId, userId, userId
     ).first();
     
     const winRate = statsResult.completed_matches > 0 
