@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import NotificationBell from "./NotificationBell";
-import logo from "../assets/logo.png";
+import logo from "../assets/Logo.png";
 
 export default function Navbar() {
   const { user, logout, isAuthenticated, isSupervisor, isAdmin } = useAuth();
