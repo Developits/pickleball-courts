@@ -13,19 +13,14 @@ export async function onRequestPost(context) {
       return authResult.error;
     }
     
-    // Get available courts (exclude reserved courts)
     const availableCourts = await env.DB.prepare(`
       SELECT * FROM courts WHERE status = 'available'
     `).all();
-    
-    // Reserved courts (status = 'reserved') are automatically excluded
-    // These courts are kept empty for special purposes (e.g., Chinese students)
     
     if (availableCourts.results.length === 0) {
       return createErrorResponse("No available courts", 400);
     }
     
-    // Get queue players with user info and sort by priority score
     const queuePlayers = await env.DB.prepare(`
       SELECT 
         q.id as queue_id,
@@ -46,7 +41,6 @@ export async function onRequestPost(context) {
       return createErrorResponse("Not enough players in queue (need at least 4)", 400);
     }
     
-    // Get system settings
     const settingsResult = await env.DB.prepare(`
       SELECT key, value FROM settings
     `).all();
@@ -55,7 +49,6 @@ export async function onRequestPost(context) {
       settings[row.key] = row.value;
     });
     
-    // Filter out players in sit-out period
     const now = new Date();
     const eligiblePlayers = queuePlayers.results.filter(player => {
       return !player.sit_out_until || new Date(player.sit_out_until) <= now;
@@ -65,7 +58,6 @@ export async function onRequestPost(context) {
       return createErrorResponse("Not enough eligible players (some are in sit-out period)", 400);
     }
     
-    // Helper to calculate priority score
     const calculatePriority = (player, nowDate) => {
       let score = 100 * (10 - (player.total_matches_today || 0));
       
@@ -77,7 +69,6 @@ export async function onRequestPost(context) {
         score += 50;
       }
       
-      // Add late arrival bonus from utils
       const lateArrivalTime = settings.late_arrival_time || '20:30';
       const lateThreshold = parseInt(settings.late_arrival_priority_threshold || '2');
       const [hours, minutes] = lateArrivalTime.split(':').map(Number);
@@ -91,19 +82,15 @@ export async function onRequestPost(context) {
       return Math.round(score);
     };
     
-    // Sort eligible players by priority
     const sortedPlayers = eligiblePlayers.map(player => ({
       ...player,
       priorityScore: calculatePriority(player, now)
     })).sort((a, b) => b.priorityScore - a.priorityScore);
     
-    // Calculate number of waiting women
     const waitingWomen = sortedPlayers.filter(p => p.gender === 'female').length;
     
-    // Calculate court allocation using gender balance logic
     const allocation = calculateCourtAllocation(waitingWomen, settings);
     
-    // Calculate total possible matches
     let availableCourtCount = availableCourts.results.length;
     let mensCourtCount = Math.min(allocation.mensCourts, availableCourtCount);
     availableCourtCount -= mensCourtCount;
@@ -114,22 +101,17 @@ export async function onRequestPost(context) {
     const createdMatches = [];
     let remainingPlayers = [...sortedPlayers];
     
-    // Separate players by gender for easier assignment
     const femalePlayers = remainingPlayers.filter(p => p.gender === 'female');
-    const malePlayers = remainingPlayers.filter(p => p.gender === 'male');
     
-    // Process women's doubles first if needed
     for (let i = 0; i < womensCourtCount && femalePlayers.length >= 4; i++) {
       const playersForMatch = femalePlayers.slice(0, 4);
       const result = await createMatch(env, playersForMatch, availableCourts.results[createdMatches.length], 'womens_double');
       createdMatches.push(result);
       
-      // Remove assigned players
       const assignedIds = playersForMatch.map(p => p.user_id);
       remainingPlayers = remainingPlayers.filter(p => !assignedIds.includes(p.user_id));
     }
     
-    // Process mixed doubles next (2 women and 2 men each)
     for (let i = 0; i < mixedCourtCount; i++) {
       const femaleForMatch = remainingPlayers.filter(p => p.gender === 'female').slice(0, 2);
       const maleForMatch = remainingPlayers.filter(p => p.gender === 'male').slice(0, 2);
@@ -146,13 +128,11 @@ export async function onRequestPost(context) {
       }
     }
     
-    // Process men's doubles with remaining players
     let mensCourtLeft = mensCourtCount;
     while (mensCourtLeft > 0 && remainingPlayers.length >= 4) {
       const playersForMatch = remainingPlayers.slice(0, 4);
-      // Check if 4 women - use women's instead
       const femaleInThis = playersForMatch.filter(p => p.gender === 'female').length;
-      const gameType = femaleInThis ===4 ? 'womens_double' : 'mens_double';
+      const gameType = femaleInThis === 4 ? 'womens_double' : 'mens_double';
       
       const result = await createMatch(env, playersForMatch, availableCourts.results[createdMatches.length], gameType);
       createdMatches.push(result);
@@ -162,11 +142,10 @@ export async function onRequestPost(context) {
       mensCourtLeft--;
     }
     
-    if (createdMatches.length ===0) {
+    if (createdMatches.length === 0) {
       return createErrorResponse("Could not create any matches with current queue composition", 400);
     }
     
-    // Notify all matched players
     const allMatchedPlayerIds = createdMatches.flatMap(m => [m.team1Player1, m.team1Player2, m.team2Player1, m.team2Player2]);
     await sendNotificationToMultiple(
       env,
@@ -188,13 +167,11 @@ export async function onRequestPost(context) {
 }
 
 async function createMatch(env, players, court, gameType) {
-  // Create teams from sorted players
   const team1Player1 = players[0].user_id;
   const team1Player2 = players[2].user_id;
   const team2Player1 = players[1].user_id;
   const team2Player2 = players[3].user_id;
   
-  // Insert match
   const result = await env.DB.prepare(`
     INSERT INTO matches (
       court_id, team1_player1_id, team1_player2_id, 
@@ -210,20 +187,17 @@ async function createMatch(env, players, court, gameType) {
   
   const matchId = result.meta.last_row_id;
   
-  // Update court status
   await env.DB.prepare(`
     UPDATE courts SET status = 'occupied', current_match_id = ?
     WHERE id = ?
   `).bind(matchId, court.id).run();
   
-  // Remove players from queue
   for (const userId of [team1Player1, team1Player2, team2Player1, team2Player2]) {
     await env.DB.prepare(`
       DELETE FROM queue WHERE user_id = ?
     `).bind(userId).run();
   }
   
-  // Get player names for response
   const playerInfo = await env.DB.prepare(`
     SELECT id, name FROM users WHERE id IN (?, ?, ?, ?)
   `).bind(team1Player1, team1Player2, team2Player1, team2Player2).all();

@@ -1,8 +1,8 @@
-import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
+import { createErrorResponse } from "../utils/jwt";
 
 export async function onRequestPost(context) {
-  const { request, env } = context;
-  
+  const {} = context;
+
   try {
     return new Response(
       JSON.stringify({
@@ -13,12 +13,13 @@ export async function onRequestPost(context) {
         status: 200,
         headers: {
           "Content-Type": "application/json",
-          "Set-Cookie": "auth_token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0",
+          "Set-Cookie":
+            "auth_token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0",
           "Cache-Control": "no-store",
         },
-      }
+      },
     );
-  } catch (error) {
+  } catch {
     return createErrorResponse("An error occurred during logout", 500);
   }
 }

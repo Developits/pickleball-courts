@@ -1,7 +1,7 @@
 const rateLimitStore = new Map();
 
 export function createRateLimiter(maxRequests = 5, windowMs = 60000) {
-  return async function rateLimiter(request, env) {
+  return async function rateLimiter(request) {
     const ip = request.headers.get("CF-Connecting-IP") || 
                request.headers.get("X-Forwarded-For") || 
                "unknown";

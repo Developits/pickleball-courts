@@ -47,7 +47,7 @@ export async function onRequestPost(context) {
       if (body.game_preference) {
         gamePreference = body.game_preference;
       }
-    } catch (e) {
+    } catch {
       // Use default "any"
     }
     
@@ -56,7 +56,6 @@ export async function onRequestPost(context) {
       VALUES (?, ?, TRUE)
     `).bind(userId, gamePreference).run();
     
-    // Notify all supervisors about new player joining queue
     const supervisors = await env.DB.prepare(`
       SELECT id FROM users WHERE role IN ('supervisor', 'admin')
     `).all();

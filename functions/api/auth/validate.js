@@ -1,4 +1,4 @@
-import { verifyToken, parseAuthHeader, createSuccessResponse, createErrorResponse } from "../utils/jwt";
+import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
 import { authenticateRequest } from "../utils/auth";
 
 export async function onRequestPost(context) {
@@ -39,7 +39,7 @@ export async function onRequestPost(context) {
         gender: user.gender,
       },
     });
-  } catch (error) {
+  } catch {
     return createErrorResponse("An error occurred during validation", 500);
   }
 }
