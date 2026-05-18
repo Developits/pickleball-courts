@@ -402,16 +402,16 @@ export default function SupervisorDashboard() {
         </div>
       )}
 
-      <div className="mb-6 flex gap-2 border-b border-gray-200">
+      <div className="mb-4 sm:mb-6 flex gap-1 sm:gap-2 border-b border-gray-200 overflow-x-auto">
         <button
           onClick={() => setActiveTab('court')}
-          className={`px-4 py-2 font-medium transition-colors ${activeTab === 'court' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-600 hover:text-gray-900'}`}
+          className={`px-3 sm:px-4 py-1.5 sm:py-2 font-medium transition-colors whitespace-nowrap ${activeTab === 'court' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-600 hover:text-gray-900'}`}
         >
           Court Management
         </button>
         <button
           onClick={() => setActiveTab('pending')}
-          className={`px-4 py-2 font-medium transition-colors ${activeTab === 'pending' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-600 hover:text-gray-900'}`}
+          className={`px-3 sm:px-4 py-1.5 sm:py-2 font-medium transition-colors whitespace-nowrap ${activeTab === 'pending' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-600 hover:text-gray-900'}`}
         >
           Pending Users
         </button>
@@ -420,28 +420,28 @@ export default function SupervisorDashboard() {
       {activeTab === 'pending' && <PendingUsers />}
 
       {activeTab === 'court' && (
-        <div className="py-4">
+        <div className="py-3 sm:py-4">
           {/* QR Checkin Area */}
-          <div className="card mb-6">
-            <h2 className="text-xl font-semibold mb-3">Player On-site Check-in QR</h2>
+          <div className="card mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-3">Player On-site Check-in QR</h2>
             <button
               onClick={generateQR}
               disabled={loadingQR}
-              className="btn btn-primary"
+              className="btn btn-primary w-full sm:w-auto"
             >
               {loadingQR ? 'Generating...' : 'Refresh New QR Code'}
             </button>
             {qrData && (
-              <div className="mt-4 flex flex-col items-center">
-                <div className="bg-white p-4 rounded-lg shadow-md mb-2">
+              <div className="mt-3 sm:mt-4 flex flex-col items-center">
+                <div className="bg-white p-3 sm:p-4 rounded-lg shadow-md mb-2">
                   <QRCodeSVG
                     value={qrData.token}
-                    size={220}
+                    size={180}
                     level="H"
                     includeMargin={true}
                   />
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-xs sm:text-sm text-gray-600">
                   Expires in: {Math.floor(qrData.expires_in_seconds / 60)} minutes {qrData.expires_in_seconds % 60} seconds
                 </p>
               </div>
@@ -449,25 +449,25 @@ export default function SupervisorDashboard() {
           </div>
 
           {/* Core: Court Quick Control Panel */}
-          <div className="card mb-6">
-            <h2 className="text-xl font-semibold mb-4">🏟️ Real-time Court Management</h2>
-            <p className="text-sm text-orange-600 mb-3">
+          <div className="card mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">🏟️ Real-time Court Management</h2>
+            <p className="text-xs sm:text-sm text-orange-600 mb-2 sm:mb-3">
               Click button to reserve court — reserved court will be kept empty for Chinese students, not allocated automatically
             </p>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
               {courts.map(court => (
                 <div
                   key={court.id}
-                  className={`p-4 rounded border ${getCourtCardClass(court)}`}
+                  className={`p-3 sm:p-4 rounded border ${getCourtCardClass(court)}`}
                 >
-                  <h3 className="font-bold text-lg">{court.name || `Court ${court.id}`}</h3>
-                  <p className="text-sm mb-3">
+                  <h3 className="font-bold text-base sm:text-lg">{court.name || `Court ${court.id}`}</h3>
+                  <p className="text-xs sm:text-sm mb-2 sm:mb-3">
                     Status: {getCourtStatusBadge(court)}
                   </p>
                   {court.status === 'available' && (
                     <button
                       onClick={() => changeCourtState(court.id, 'reserve')}
-                      className="btn btn-warning w-full text-sm"
+                      className="btn btn-warning w-full text-xs sm:text-sm"
                     >
                       Reserve For Chinese Students
                     </button>
@@ -475,13 +475,13 @@ export default function SupervisorDashboard() {
                   {court.status === 'reserved' && (
                     <button
                       onClick={() => changeCourtState(court.id, 'unreserve')}
-                      className="btn btn-secondary w-full text-sm"
+                      className="btn btn-secondary w-full text-xs sm:text-sm"
                     >
                       Release Reservation
                     </button>
                   )}
                   {court.status === 'occupied' && (
-                    <p className="text-sm text-gray-500 italic">
+                    <p className="text-xs sm:text-sm text-gray-500 italic">
                       Court in use
                     </p>
                   )}
@@ -491,24 +491,24 @@ export default function SupervisorDashboard() {
           </div>
 
           {/* Queue & Match Area */}
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             <div className="card">
-              <h2 className="text-xl font-semibold mb-3">
+              <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-3">
                 Waiting Queue ({queue.length})
               </h2>
               {queue.length === 0 ? (
-                <p>No players in queue.</p>
+                <p className="text-sm text-gray-600">No players in queue.</p>
               ) : (
                 <div className="space-y-2">
                   {queue.map((player, index) => (
-                    <div key={player.id} className="p-3 border rounded-lg bg-gray-50">
+                    <div key={player.id} className="p-2 sm:p-3 border rounded-lg bg-gray-50">
                       <div className="flex justify-between items-center">
-                        <span className="font-bold">{index + 1}. {player.user_name}</span>
+                        <span className="font-bold text-sm sm:text-base">{index + 1}. {player.user_name}</span>
                         <span className="text-xs font-semibold text-green-600 bg-green-100 px-2 py-1 rounded-full">
                           Priority: {player.priority_score}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-600 mt-1">
+                      <div className="text-xs sm:text-sm text-gray-600 mt-1">
                         {player.game_preference && player.game_preference !== 'any' && (
                           <span className="mr-2">🎮 {player.game_preference}</span>
                         )}
@@ -520,7 +520,7 @@ export default function SupervisorDashboard() {
               )}
               
               {queue.length >= 4 && (
-                <div className="mt-4 pt-4 border-t">
+                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t">
                   <button
                     onClick={autoAssignMatch}
                     disabled={isAutoAssigning}
@@ -532,17 +532,17 @@ export default function SupervisorDashboard() {
               )}
             </div>
             <div className="card">
-              <h2 className="text-xl font-semibold mb-3">
+              <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-3">
                 Checked-in Players ({checkedInPlayers.length})
               </h2>
               {checkedInPlayers.length === 0 ? (
-                <p>No players checked in yet.</p>
+                <p className="text-sm text-gray-600">No players checked in yet.</p>
               ) : (
                 <div className="space-y-2">
                   {checkedInPlayers.map((player) => (
                     <div key={player.id} className="border-b pb-2">
-                      <div className="font-medium">{player.name}</div>
-                      <div className="text-sm text-gray-600">
+                      <div className="font-medium text-sm sm:text-base">{player.name}</div>
+                      <div className="text-xs sm:text-sm text-gray-600">
                         {player.student_id && <span>ID: {player.student_id} | </span>}
                         {player.total_matches_today > 0 && <span>{player.total_matches_today} matches today</span>}
                       </div>
@@ -556,46 +556,46 @@ export default function SupervisorDashboard() {
             </div>
           </div>
 
-          <div className="card mt-6">
-            <h2 className="text-xl font-semibold mb-3">Ongoing Matches ({matches.length})</h2>
+          <div className="card mt-4 sm:mt-6">
+            <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-3">Ongoing Matches ({matches.length})</h2>
             {matches.length === 0 ? (
-              <p>No ongoing matches.</p>
+              <p className="text-sm text-gray-600">No ongoing matches.</p>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {matches.map((match, i) => (
-                  <div key={match.id} className="p-4 border rounded-lg bg-gray-50">
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-bold">{match.court_name} - {match.game_type}</h3>
+                  <div key={match.id} className="p-3 sm:p-4 border rounded-lg bg-gray-50">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 sm:mb-3 gap-2">
+                      <h3 className="font-bold text-sm sm:text-base">{match.court_name} - {match.game_type}</h3>
                       <span className="text-xs text-gray-500">
                         Started: {new Date(match.started_at).toLocaleTimeString()}
                       </span>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className="p-3 border rounded-lg bg-blue-50">
-                        <div className="font-semibold text-blue-800 mb-1">Team 1</div>
-                        <div className="text-sm">{match.team1_player1_name}</div>
-                        <div className="text-sm">{match.team1_player2_name}</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
+                      <div className="p-2 sm:p-3 border rounded-lg bg-blue-50">
+                        <div className="font-semibold text-blue-800 mb-1 text-sm sm:text-base">Team 1</div>
+                        <div className="text-xs sm:text-sm">{match.team1_player1_name}</div>
+                        <div className="text-xs sm:text-sm">{match.team1_player2_name}</div>
                       </div>
-                      <div className="p-3 border rounded-lg bg-orange-50">
-                        <div className="font-semibold text-orange-800 mb-1">Team 2</div>
-                        <div className="text-sm">{match.team2_player1_name}</div>
-                        <div className="text-sm">{match.team2_player2_name}</div>
+                      <div className="p-2 sm:p-3 border rounded-lg bg-orange-50">
+                        <div className="font-semibold text-orange-800 mb-1 text-sm sm:text-base">Team 2</div>
+                        <div className="text-xs sm:text-sm">{match.team2_player1_name}</div>
+                        <div className="text-xs sm:text-sm">{match.team2_player2_name}</div>
                       </div>
                     </div>
                     
-                    <div className="flex gap-3">
+                    <div className="flex gap-2 sm:gap-3">
                       <button
                         onClick={() => handleEndMatchClick(match)}
                         disabled={cancelingMatch === match.id || isEndingMatch}
-                        className="btn btn-primary flex-1"
+                        className="btn btn-primary flex-1 text-xs sm:text-sm"
                       >
                         End Match
                       </button>
                       <button
                         onClick={() => cancelMatch(match.id)}
                         disabled={cancelingMatch === match.id || isEndingMatch}
-                        className="btn btn-danger flex-1"
+                        className="btn btn-danger flex-1 text-xs sm:text-sm"
                       >
                         {cancelingMatch === match.id ? 'Canceling...' : 'Cancel Match'}
                       </button>

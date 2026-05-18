@@ -1,0 +1,17 @@
+feat: Create beautiful, minimal, informative homepage
+
+New Design Features:
+- Hero section with clean typography and prominent CTA buttons
+- Features section (6 cards) with icons and hover effects
+- How It Works section (4-step process with numbered circles)
+- Final CTA section with blue background
+- Professional spacing and modern visual design
+
+Homepage Highlights:
+- Clear value proposition: "Fair Court Management Made Simple"
+- Prominent Login/Register buttons
+- All features documented (Fair Rotation, Gender Balance, QR Check-In, Real-Time, Reservation, Stats)
+- Step-by-step guide showing how the system works
+- Final CTA encouraging sign-ups
+
+Clean, professional, and informative design that converts visitors into users!
