@@ -95,24 +95,33 @@ export default function PlayerDashboard() {
   }, [userId]);
 
   useEffect(() => {
+    // Initial fetch on component mount
     Promise.resolve().then(() => {
       fetchCheckInStatus();
       fetchQueueStatus();
     });
-    const interval = setInterval(() => {
-      fetchCheckInStatus();
-      fetchQueueStatus();
-    }, 5000);
-    return () => clearInterval(interval);
   }, [fetchCheckInStatus, fetchQueueStatus]);
 
-  // Update queue data when SSE data changes
+  // Update all data when SSE data changes (replace polling)
   useEffect(() => {
     if (!sseData) return;
     Promise.resolve().then(() => {
       if (sseData.queue) {
         setQueueData(sseData.queue);
+        // Check if current user is in queue using SSE data
+        const userEntry = sseData.queue?.find((item) => item.user_id === userId);
+        if (userEntry) {
+          setInQueue(true);
+          setQueueEntry(userEntry);
+          if (userEntry.game_preference) {
+            setGamePreference(userEntry.game_preference);
+          }
+        } else {
+          setInQueue(false);
+          setQueueEntry(null);
+        }
       }
+      
       if (sseData.checkedIn) {
         const currentUserCheckedIn = sseData.checkedIn.find(
           (c) => c.user_id === userId,
@@ -120,6 +129,9 @@ export default function PlayerDashboard() {
         if (currentUserCheckedIn) {
           setCheckedIn(true);
           setCheckInData(currentUserCheckedIn);
+        } else {
+          setCheckedIn(false);
+          setCheckInData(null);
         }
       }
     });
