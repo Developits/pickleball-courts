@@ -28,7 +28,7 @@ export default function AuthProvider({ children }) {
             localStorage.removeItem("auth_token");
             localStorage.removeItem("user");
           }
-        } catch (error) {
+        } catch {
           localStorage.removeItem("auth_token");
           localStorage.removeItem("user");
         }

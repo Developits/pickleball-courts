@@ -9,19 +9,15 @@ export default function AllUsers() {
   const [filter, setFilter] = useState("all"); // 'all', 'players', 'supervisors', 'admins'
   const { user } = useAuth();
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
   const fetchUsers = async () => {
     setLoading(true);
     setError("");
-    
+
     try {
       const token = localStorage.getItem("auth_token");
       const response = await fetch("/api/admin/users", {
         headers: {
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -31,7 +27,7 @@ export default function AllUsers() {
 
       const data = await response.json();
       // Filter only approved users
-      const approvedUsers = data.users.filter(u => u.is_approved);
+      const approvedUsers = data.users.filter((u) => u.is_approved);
       setUsers(approvedUsers);
     } catch (err) {
       setError(err.message);
@@ -39,6 +35,10 @@ export default function AllUsers() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    Promise.resolve().then(fetchUsers);
+  }, []);
 
   const handleManageUser = async (userId, action, duration = null) => {
     setProcessing(userId);
@@ -50,7 +50,7 @@ export default function AllUsers() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           user_id: userId,
@@ -67,7 +67,7 @@ export default function AllUsers() {
 
       // Refresh the user list
       fetchUsers();
-      
+
       // Show success message
       alert(data.message);
     } catch (err) {
@@ -77,7 +77,7 @@ export default function AllUsers() {
     }
   };
 
-  const filteredUsers = users.filter(u => {
+  const filteredUsers = users.filter((u) => {
     if (filter === "all") return true;
     return u.role === filter;
   });
@@ -125,7 +125,7 @@ export default function AllUsers() {
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-xl font-bold">All Users</h3>
         <span className="text-gray-600">
-          {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'}
+          {filteredUsers.length} {filteredUsers.length === 1 ? "user" : "users"}
         </span>
       </div>
 
@@ -194,12 +194,14 @@ export default function AllUsers() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h4 className="font-bold">{u.name}</h4>
-                    <span className={`px-2 py-1 text-xs rounded ${getRoleBadgeColor(u.role)}`}>
+                    <span
+                      className={`px-2 py-1 text-xs rounded ${getRoleBadgeColor(u.role)}`}
+                    >
                       {u.role}
                     </span>
                     {getStatusBadge(u)}
                   </div>
-                  
+
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 text-sm text-gray-600 mb-3">
                     <div>
                       <span className="font-medium">ID:</span> {u.student_id}
@@ -208,10 +210,12 @@ export default function AllUsers() {
                       <span className="font-medium">Dept:</span> {u.department}
                     </div>
                     <div>
-                      <span className="font-medium">Matches:</span> {u.total_matches}
+                      <span className="font-medium">Matches:</span>{" "}
+                      {u.total_matches}
                     </div>
                     <div>
-                      <span className="font-medium">W/L:</span> {u.wins}/{u.losses}
+                      <span className="font-medium">W/L:</span> {u.wins}/
+                      {u.losses}
                     </div>
                   </div>
 
@@ -235,7 +239,7 @@ export default function AllUsers() {
                     >
                       ⚠️ Warn
                     </button>
-                    
+
                     <div className="relative group">
                       <button
                         className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
@@ -263,7 +267,9 @@ export default function AllUsers() {
                           1 Week
                         </button>
                         <button
-                          onClick={() => handleManageUser(u.id, "ban", "permanent")}
+                          onClick={() =>
+                            handleManageUser(u.id, "ban", "permanent")
+                          }
                           className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-b-lg"
                         >
                           Permanent
@@ -271,19 +277,20 @@ export default function AllUsers() {
                       </div>
                     </div>
 
-                    {u.banned_until && new Date(u.banned_until) > new Date() && (
-                      <button
-                        onClick={() => {
-                          if (confirm(`Unban ${u.name}?`)) {
-                            handleManageUser(u.id, "unban");
-                          }
-                        }}
-                        disabled={processing === u.id}
-                        className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        ✓ Unban
-                      </button>
-                    )}
+                    {u.banned_until &&
+                      new Date(u.banned_until) > new Date() && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Unban ${u.name}?`)) {
+                              handleManageUser(u.id, "unban");
+                            }
+                          }}
+                          disabled={processing === u.id}
+                          className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          ✓ Unban
+                        </button>
+                      )}
                   </div>
                 )}
               </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
@@ -9,20 +9,20 @@ export default function NotificationBell() {
   const loadNotifications = async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch('/api/notifications', {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch("/api/notifications", {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
       const data = await response.json();
-      
+
       if (data.success) {
         setNotifications(data.notifications || []);
         setUnreadCount(data.unread_count || 0);
       }
     } catch (error) {
-      console.error('Error loading notifications:', error);
+      console.error("Error loading notifications:", error);
     } finally {
       setIsLoading(false);
     }
@@ -30,51 +30,53 @@ export default function NotificationBell() {
 
   const markAsRead = async (notificationId = null) => {
     try {
-      const token = localStorage.getItem('auth_token');
-      await fetch('/api/notifications/mark-read', {
-        method: 'POST',
+      const token = localStorage.getItem("auth_token");
+      await fetch("/api/notifications/mark-read", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           notification_id: notificationId,
-          mark_all: !notificationId
-        })
+          mark_all: !notificationId,
+        }),
       });
-      
+
       if (notificationId) {
-        setNotifications(prev => prev.map(n => 
-          n.id === notificationId ? { ...n, is_read: true } : n
-        ));
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.id === notificationId ? { ...n, is_read: true } : n,
+          ),
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
       } else {
-        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+        setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
         setUnreadCount(0);
       }
     } catch (error) {
-      console.error('Error marking notification read:', error);
+      console.error("Error marking notification read:", error);
     }
   };
 
   const getNotificationColor = (type) => {
     switch (type) {
-      case 'success':
-        return 'bg-green-100 border-green-400 text-green-800';
-      case 'warning':
-        return 'bg-yellow-100 border-yellow-400 text-yellow-800';
-      case 'match':
-        return 'bg-blue-100 border-blue-400 text-blue-800';
-      case 'team_invite':
-        return 'bg-purple-100 border-purple-400 text-purple-800';
-      case 'account_approved':
-        return 'bg-green-100 border-green-400 text-green-800';
-      case 'check_in':
-        return 'bg-teal-100 border-teal-400 text-teal-800';
-      case 'queue':
-        return 'bg-indigo-100 border-indigo-400 text-indigo-800';
+      case "success":
+        return "bg-green-100 border-green-400 text-green-800";
+      case "warning":
+        return "bg-yellow-100 border-yellow-400 text-yellow-800";
+      case "match":
+        return "bg-blue-100 border-blue-400 text-blue-800";
+      case "team_invite":
+        return "bg-purple-100 border-purple-400 text-purple-800";
+      case "account_approved":
+        return "bg-green-100 border-green-400 text-green-800";
+      case "check_in":
+        return "bg-teal-100 border-teal-400 text-teal-800";
+      case "queue":
+        return "bg-indigo-100 border-indigo-400 text-indigo-800";
       default:
-        return 'bg-gray-100 border-gray-400 text-gray-800';
+        return "bg-gray-100 border-gray-400 text-gray-800";
     }
   };
 
@@ -83,15 +85,15 @@ export default function NotificationBell() {
     const now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);
-    
-    if (diffMins < 1) return 'Just now';
+
+    if (diffMins < 1) return "Just now";
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
     return date.toLocaleDateString();
   };
 
   useEffect(() => {
-    loadNotifications();
+    Promise.resolve().then(loadNotifications);
     const timer = setInterval(loadNotifications, 30000); // Refresh every 30 seconds
     return () => clearInterval(timer);
   }, []);
@@ -105,7 +107,7 @@ export default function NotificationBell() {
         🔔
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
-            {unreadCount > 9 ? '9+' : unreadCount}
+            {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </button>
@@ -113,11 +115,11 @@ export default function NotificationBell() {
       {isOpen && (
         <>
           {/* Backdrop */}
-          <div 
-            className="fixed inset-0 z-40" 
+          <div
+            className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
-          
+
           {/* Notification panel */}
           <div className="absolute right-0 top-12 z-50 w-80 max-h-96 overflow-y-auto rounded-lg border bg-white shadow-lg">
             <div className="flex items-center justify-between border-b p-4">
@@ -145,8 +147,10 @@ export default function NotificationBell() {
                 notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`mb-2 rounded-lg border-l-4 p-3 ${getNotificationColor(notification.type)} ${!notification.is_read ? 'font-medium' : ''}`}
-                    onClick={() => !notification.is_read && markAsRead(notification.id)}
+                    className={`mb-2 rounded-lg border-l-4 p-3 ${getNotificationColor(notification.type)} ${!notification.is_read ? "font-medium" : ""}`}
+                    onClick={() =>
+                      !notification.is_read && markAsRead(notification.id)
+                    }
                   >
                     <div className="font-semibold">{notification.title}</div>
                     <div className="text-sm">{notification.message}</div>

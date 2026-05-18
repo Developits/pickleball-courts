@@ -1,35 +1,37 @@
 import bcrypt from "bcryptjs";
-import { generateToken, createSuccessResponse, createErrorResponse } from "../utils/jwt";
+import { generateToken, createErrorResponse } from "../utils/jwt";
 import { validateStudentId, validatePassword } from "../utils/validation";
 import { loginRateLimiter, getRateLimitHeaders } from "../utils/rateLimit";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
-  
+
   try {
     console.log("Login endpoint called");
-    
+
     const { studentId, password } = await request.json();
-    
+
     console.log("Login attempt for:", studentId);
-    
+
     const rateLimitResult = await loginRateLimiter(request, env);
     const rateLimitHeaders = getRateLimitHeaders(rateLimitResult);
-    
+
     if (rateLimitResult.limited) {
       console.log("Rate limit hit for:", studentId);
       return new Response(
-        JSON.stringify({ error: "Too many login attempts. Please try again later." }),
+        JSON.stringify({
+          error: "Too many login attempts. Please try again later.",
+        }),
         {
           status: 429,
           headers: {
             "Content-Type": "application/json",
-            ...Object.fromEntries(rateLimitHeaders)
+            ...Object.fromEntries(rateLimitHeaders),
           },
-        }
+        },
       );
     }
-    
+
     try {
       validateStudentId(studentId);
       validatePassword(password);
@@ -39,7 +41,9 @@ export async function onRequestPost(context) {
     }
 
     console.log("Querying database for user:", studentId);
-    const user = await env.DB.prepare("SELECT * FROM users WHERE student_id = ?")
+    const user = await env.DB.prepare(
+      "SELECT * FROM users WHERE student_id = ?",
+    )
       .bind(studentId)
       .first();
 
@@ -64,12 +68,13 @@ export async function onRequestPost(context) {
       console.log("User banned:", studentId);
       return createErrorResponse(
         `You are banned until ${new Date(user.banned_until).toLocaleDateString()}`,
-        403
+        403,
       );
     }
 
     console.log("Generating JWT token");
-    const jwtSecret = env.JWT_SECRET || "development-secret-for-local-only-please-change";
+    const jwtSecret =
+      env.JWT_SECRET || "development-secret-for-local-only-please-change";
     const token = await generateToken(
       {
         userId: user.id,
@@ -78,7 +83,7 @@ export async function onRequestPost(context) {
         name: user.name,
       },
       jwtSecret,
-      86400
+      86400,
     );
 
     console.log("Login successful for:", studentId);
@@ -99,9 +104,9 @@ export async function onRequestPost(context) {
         headers: {
           "Content-Type": "application/json",
           "Set-Cookie": `auth_token=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400`,
-          ...Object.fromEntries(rateLimitHeaders)
+          ...Object.fromEntries(rateLimitHeaders),
         },
-      }
+      },
     );
   } catch (error) {
     console.error("Login error:", error);

@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../hooks/useAuth";
 
 export default function Profile() {
   const [profile, setProfile] = useState(null);
@@ -27,8 +26,8 @@ export default function Profile() {
       const response = await fetch("/api/profile", {
         method: "GET",
         headers: {
-          "Authorization": `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
       const data = await response.json();
       if (data.success) {
@@ -37,7 +36,10 @@ export default function Profile() {
         setEditName(data.data.user.name);
         setEditGender(data.data.user.gender);
       } else {
-        setMessage({ type: "error", text: data.error || "Failed to load profile" });
+        setMessage({
+          type: "error",
+          text: data.error || "Failed to load profile",
+        });
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -48,7 +50,7 @@ export default function Profile() {
   };
 
   useEffect(() => {
-    fetchProfile();
+    Promise.resolve().then(fetchProfile);
   }, []);
 
   const handleSave = async () => {
@@ -59,10 +61,10 @@ export default function Profile() {
       const response = await fetch("/api/profile", {
         method: "PUT",
         headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name: editName, gender: editGender })
+        body: JSON.stringify({ name: editName, gender: editGender }),
       });
       const data = await response.json();
       if (data.success) {
@@ -71,7 +73,10 @@ export default function Profile() {
         setIsEditing(false);
         setMessage({ type: "success", text: "Profile updated successfully!" });
       } else {
-        setMessage({ type: "error", text: data.error || "Failed to update profile" });
+        setMessage({
+          type: "error",
+          text: data.error || "Failed to update profile",
+        });
       }
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -97,7 +102,9 @@ export default function Profile() {
       <h1 className="text-3xl font-bold mb-8 text-gray-900">Your Profile</h1>
 
       {message && (
-        <div className={`mb-6 p-4 rounded-lg ${message.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+        <div
+          className={`mb-6 p-4 rounded-lg ${message.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+        >
           {message.text}
         </div>
       )}
@@ -107,9 +114,13 @@ export default function Profile() {
         <div className="lg:col-span-2">
           <div className="card bg-white">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Personal Information</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Personal Information
+              </h2>
               <button
-                onClick={() => isEditing ? setIsEditing(false) : setIsEditing(true)}
+                onClick={() =>
+                  isEditing ? setIsEditing(false) : setIsEditing(true)
+                }
                 className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
               >
                 {isEditing ? "Cancel" : "Edit Profile"}
@@ -129,7 +140,9 @@ export default function Profile() {
                 {isEditing ? (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Full Name
+                      </label>
                       <input
                         type="text"
                         value={editName}
@@ -138,7 +151,9 @@ export default function Profile() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Gender
+                      </label>
                       <select
                         value={editGender}
                         onChange={(e) => setEditGender(e.target.value)}
@@ -160,32 +175,56 @@ export default function Profile() {
                 ) : (
                   <>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Full Name</label>
+                      <label className="text-sm font-medium text-gray-500">
+                        Full Name
+                      </label>
                       <p className="text-lg text-gray-900">{profile?.name}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Student ID</label>
-                      <p className="text-lg text-gray-900">{profile?.studentId}</p>
+                      <label className="text-sm font-medium text-gray-500">
+                        Student ID
+                      </label>
+                      <p className="text-lg text-gray-900">
+                        {profile?.studentId}
+                      </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Department</label>
-                      <p className="text-lg text-gray-900">{profile?.department}</p>
+                      <label className="text-sm font-medium text-gray-500">
+                        Department
+                      </label>
+                      <p className="text-lg text-gray-900">
+                        {profile?.department}
+                      </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Degree</label>
+                      <label className="text-sm font-medium text-gray-500">
+                        Degree
+                      </label>
                       <p className="text-lg text-gray-900">{profile?.degree}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Year</label>
+                      <label className="text-sm font-medium text-gray-500">
+                        Year
+                      </label>
                       <p className="text-lg text-gray-900">{profile?.year}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Gender</label>
-                      <p className="text-lg text-gray-900 capitalize">{profile?.gender}</p>
+                      <label className="text-sm font-medium text-gray-500">
+                        Gender
+                      </label>
+                      <p className="text-lg text-gray-900 capitalize">
+                        {profile?.gender}
+                      </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Member Since</label>
-                      <p className="text-lg text-gray-900">{profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : ""}</p>
+                      <label className="text-sm font-medium text-gray-500">
+                        Member Since
+                      </label>
+                      <p className="text-lg text-gray-900">
+                        {profile?.createdAt
+                          ? new Date(profile.createdAt).toLocaleDateString()
+                          : ""}
+                      </p>
                     </div>
                   </>
                 )}
@@ -197,31 +236,43 @@ export default function Profile() {
         {/* Statistics Card */}
         <div className="lg:col-span-1">
           <div className="card bg-white">
-            <h2 className="text-2xl font-bold mb-6 text-gray-900">Game Statistics</h2>
-            
+            <h2 className="text-2xl font-bold mb-6 text-gray-900">
+              Game Statistics
+            </h2>
+
             <div className="space-y-4">
               {/* Win Rate */}
               <div className="text-center p-4 bg-linear-to-br from-green-50 to-green-100 rounded-xl">
-                <p className="text-5xl font-bold text-green-600">{stats?.winRate || 0}%</p>
+                <p className="text-5xl font-bold text-green-600">
+                  {stats?.winRate || 0}%
+                </p>
                 <p className="text-gray-600 mt-1">Win Rate</p>
               </div>
 
               {/* Stats Grid */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-4 bg-gray-50 rounded-xl">
-                  <p className="text-3xl font-bold text-gray-900">{stats?.totalMatches || 0}</p>
+                  <p className="text-3xl font-bold text-gray-900">
+                    {stats?.totalMatches || 0}
+                  </p>
                   <p className="text-sm text-gray-600">Total Matches</p>
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-xl">
-                  <p className="text-3xl font-bold text-green-600">{stats?.wins || 0}</p>
+                  <p className="text-3xl font-bold text-green-600">
+                    {stats?.wins || 0}
+                  </p>
                   <p className="text-sm text-gray-600">Wins</p>
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-xl">
-                  <p className="text-3xl font-bold text-red-500">{stats?.losses || 0}</p>
+                  <p className="text-3xl font-bold text-red-500">
+                    {stats?.losses || 0}
+                  </p>
                   <p className="text-sm text-gray-600">Losses</p>
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-xl">
-                  <p className="text-3xl font-bold text-blue-600">{stats?.completedMatches || 0}</p>
+                  <p className="text-3xl font-bold text-blue-600">
+                    {stats?.completedMatches || 0}
+                  </p>
                   <p className="text-sm text-gray-600">Completed</p>
                 </div>
               </div>

@@ -1,8 +1,6 @@
 import { createErrorResponse } from "../utils/jwt";
 
-export async function onRequestPost(context) {
-  const {} = context;
-
+export async function onRequestPost() {
   try {
     return new Response(
       JSON.stringify({

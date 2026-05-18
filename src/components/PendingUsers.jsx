@@ -6,21 +6,20 @@ export default function PendingUsers() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [processing, setProcessing] = useState(null);
-  const { user } = useAuth();
 
   useEffect(() => {
-    fetchPendingUsers();
+    Promise.resolve().then(fetchPendingUsers);
   }, []);
 
   const fetchPendingUsers = async () => {
     setLoading(true);
     setError("");
-    
+
     try {
       const token = localStorage.getItem("auth_token");
       const response = await fetch("/api/admin/users", {
         headers: {
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -30,7 +29,7 @@ export default function PendingUsers() {
 
       const data = await response.json();
       // Filter only pending users
-      const pendingUsers = data.users.filter(u => !u.is_approved);
+      const pendingUsers = data.users.filter((u) => !u.is_approved);
       setUsers(pendingUsers);
     } catch (err) {
       setError(err.message);
@@ -49,7 +48,7 @@ export default function PendingUsers() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           user_id: userId,
@@ -64,8 +63,8 @@ export default function PendingUsers() {
       }
 
       // Remove the user from the list
-      setUsers(users.filter(u => u.id !== userId));
-      
+      setUsers(users.filter((u) => u.id !== userId));
+
       // Show success message
       alert(data.message);
     } catch (err) {
@@ -92,7 +91,7 @@ export default function PendingUsers() {
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-xl font-bold">Pending Approvals</h3>
         <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">
-          {users.length} {users.length === 1 ? 'user' : 'users'} waiting
+          {users.length} {users.length === 1 ? "user" : "users"} waiting
         </span>
       </div>
 
@@ -135,25 +134,31 @@ export default function PendingUsers() {
                       {pendingUser.role}
                     </span>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600">
                     <div>
-                      <span className="font-medium">Student ID:</span> {pendingUser.student_id}
+                      <span className="font-medium">Student ID:</span>{" "}
+                      {pendingUser.student_id}
                     </div>
                     <div>
-                      <span className="font-medium">Department:</span> {pendingUser.department}
+                      <span className="font-medium">Department:</span>{" "}
+                      {pendingUser.department}
                     </div>
                     <div>
-                      <span className="font-medium">Degree:</span> {pendingUser.degree}
+                      <span className="font-medium">Degree:</span>{" "}
+                      {pendingUser.degree}
                     </div>
                     <div>
-                      <span className="font-medium">Year:</span> {pendingUser.year}
+                      <span className="font-medium">Year:</span>{" "}
+                      {pendingUser.year}
                     </div>
                     <div>
-                      <span className="font-medium">Gender:</span> {pendingUser.gender}
+                      <span className="font-medium">Gender:</span>{" "}
+                      {pendingUser.gender}
                     </div>
                     <div>
-                      <span className="font-medium">Registered:</span> {new Date(pendingUser.created_at).toLocaleDateString()}
+                      <span className="font-medium">Registered:</span>{" "}
+                      {new Date(pendingUser.created_at).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
@@ -166,7 +171,10 @@ export default function PendingUsers() {
                   >
                     {processing === pendingUser.id ? (
                       <span className="flex items-center gap-2">
-                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <svg
+                          className="animate-spin h-4 w-4"
+                          viewBox="0 0 24 24"
+                        >
                           <circle
                             className="opacity-25"
                             cx="12"
@@ -188,10 +196,14 @@ export default function PendingUsers() {
                       "✓ Approve"
                     )}
                   </button>
-                  
+
                   <button
                     onClick={() => {
-                      if (confirm(`Are you sure you want to reject ${pendingUser.name}? This will remove their account.`)) {
+                      if (
+                        confirm(
+                          `Are you sure you want to reject ${pendingUser.name}? This will remove their account.`,
+                        )
+                      ) {
                         handleApproval(pendingUser.id, "reject");
                       }
                     }}
