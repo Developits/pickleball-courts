@@ -21,24 +21,27 @@ export async function onRequestGet(context) {
       return createErrorResponse("User not found", 404);
     }
     
-    const statsResult = await env.DB.prepare(`
-      SELECT
-        COUNT(*) as total_matches,
-        SUM(CASE WHEN winner_team = 1 AND (team1_player1_id = ? OR team1_player2_id = ?) THEN 1 
-                 WHEN winner_team = 2 AND (team2_player1_id = ? OR team2_player2_id = ?) THEN 1 
-                 ELSE 0 END) as wins,
-        SUM(CASE WHEN winner_team IS NOT NULL AND (team1_player1_id = ? OR team1_player2_id = ? OR team2_player1_id = ? OR team2_player2_id = ?) THEN 1 ELSE 0 END) as completed_matches
-      FROM matches
+    const totalMatchesResult = await env.DB.prepare(`
+      SELECT COUNT(*) as count FROM matches 
       WHERE team1_player1_id = ? OR team1_player2_id = ? OR team2_player1_id = ? OR team2_player2_id = ?
-    `).bind(
-      userId, userId, userId, userId,
-      userId, userId, userId, userId,
-      userId, userId, userId, userId
-    ).first();
+    `).bind(userId, userId, userId, userId).first();
     
-    const winRate = statsResult.completed_matches > 0 
-      ? Math.round((statsResult.wins / statsResult.completed_matches) * 100) 
-      : 0;
+    const winsResult = await env.DB.prepare(`
+      SELECT COUNT(*) as count FROM matches 
+      WHERE (winner_team = 1 AND (team1_player1_id = ? OR team1_player2_id = ?))
+         OR (winner_team = 2 AND (team2_player1_id = ? OR team2_player2_id = ?))
+    `).bind(userId, userId, userId, userId).first();
+    
+    const completedResult = await env.DB.prepare(`
+      SELECT COUNT(*) as count FROM matches 
+      WHERE winner_team IS NOT NULL AND (team1_player1_id = ? OR team1_player2_id = ? OR team2_player1_id = ? OR team2_player2_id = ?)
+    `).bind(userId, userId, userId, userId).first();
+    
+    const totalMatches = totalMatchesResult.count || 0;
+    const wins = winsResult.count || 0;
+    const completedMatches = completedResult.count || 0;
+    const losses = completedMatches - wins;
+    const winRate = completedMatches > 0 ? Math.round((wins / completedMatches) * 100) : 0;
     
     return createSuccessResponse({
       user: {
@@ -51,11 +54,11 @@ export async function onRequestGet(context) {
         createdAt: user.created_at
       },
       stats: {
-        totalMatches: statsResult.total_matches,
-        wins: statsResult.wins,
-        losses: statsResult.completed_matches - statsResult.wins,
+        totalMatches: totalMatches,
+        wins: wins,
+        losses: losses,
         winRate: winRate,
-        completedMatches: statsResult.completed_matches
+        completedMatches: completedMatches
       }
     });
   } catch (error) {
@@ -93,24 +96,27 @@ export async function onRequestPut(context) {
       .bind(userId)
       .first();
     
-    const statsResult = await env.DB.prepare(`
-      SELECT
-        COUNT(*) as total_matches,
-        SUM(CASE WHEN winner_team = 1 AND (team1_player1_id = ? OR team1_player2_id = ?) THEN 1 
-                 WHEN winner_team = 2 AND (team2_player1_id = ? OR team2_player2_id = ?) THEN 1 
-                 ELSE 0 END) as wins,
-        SUM(CASE WHEN winner_team IS NOT NULL AND (team1_player1_id = ? OR team1_player2_id = ? OR team2_player1_id = ? OR team2_player2_id = ?) THEN 1 ELSE 0 END) as completed_matches
-      FROM matches
+    const totalMatchesResult = await env.DB.prepare(`
+      SELECT COUNT(*) as count FROM matches 
       WHERE team1_player1_id = ? OR team1_player2_id = ? OR team2_player1_id = ? OR team2_player2_id = ?
-    `).bind(
-      userId, userId, userId, userId,
-      userId, userId, userId, userId,
-      userId, userId, userId, userId
-    ).first();
+    `).bind(userId, userId, userId, userId).first();
     
-    const winRate = statsResult.completed_matches > 0 
-      ? Math.round((statsResult.wins / statsResult.completed_matches) * 100) 
-      : 0;
+    const winsResult = await env.DB.prepare(`
+      SELECT COUNT(*) as count FROM matches 
+      WHERE (winner_team = 1 AND (team1_player1_id = ? OR team1_player2_id = ?))
+         OR (winner_team = 2 AND (team2_player1_id = ? OR team2_player2_id = ?))
+    `).bind(userId, userId, userId, userId).first();
+    
+    const completedResult = await env.DB.prepare(`
+      SELECT COUNT(*) as count FROM matches 
+      WHERE winner_team IS NOT NULL AND (team1_player1_id = ? OR team1_player2_id = ? OR team2_player1_id = ? OR team2_player2_id = ?)
+    `).bind(userId, userId, userId, userId).first();
+    
+    const totalMatches = totalMatchesResult.count || 0;
+    const wins = winsResult.count || 0;
+    const completedMatches = completedResult.count || 0;
+    const losses = completedMatches - wins;
+    const winRate = completedMatches > 0 ? Math.round((wins / completedMatches) * 100) : 0;
     
     return createSuccessResponse({
       user: {
@@ -123,11 +129,11 @@ export async function onRequestPut(context) {
         createdAt: user.created_at
       },
       stats: {
-        totalMatches: statsResult.total_matches,
-        wins: statsResult.wins,
-        losses: statsResult.completed_matches - statsResult.wins,
+        totalMatches: totalMatches,
+        wins: wins,
+        losses: losses,
         winRate: winRate,
-        completedMatches: statsResult.completed_matches
+        completedMatches: completedMatches
       }
     });
   } catch (error) {
