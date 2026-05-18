@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 
 export default function Profile() {
-  const { user: authUser } = useAuth();
   const [profile, setProfile] = useState(null);
   const [stats, setStats] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -20,10 +19,6 @@ export default function Profile() {
     }
     return name[0].toUpperCase();
   };
-
-  useEffect(() => {
-    fetchProfile();
-  }, []);
 
   const fetchProfile = async () => {
     try {
@@ -51,6 +46,10 @@ export default function Profile() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
 
   const handleSave = async () => {
     try {
@@ -119,8 +118,8 @@ export default function Profile() {
 
             <div className="flex items-start gap-6">
               {/* Avatar */}
-              <div className="flex-shrink-0">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-4xl font-bold text-white shadow-lg">
+              <div className="shrink-0">
+                <div className="w-24 h-24 rounded-full bg-linear-to-br from-green-400 to-green-600 flex items-center justify-center text-4xl font-bold text-white shadow-lg">
                   {profile && getUserInitials(profile.name)}
                 </div>
               </div>
@@ -202,7 +201,7 @@ export default function Profile() {
             
             <div className="space-y-4">
               {/* Win Rate */}
-              <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl">
+              <div className="text-center p-4 bg-linear-to-br from-green-50 to-green-100 rounded-xl">
                 <p className="text-5xl font-bold text-green-600">{stats?.winRate || 0}%</p>
                 <p className="text-gray-600 mt-1">Win Rate</p>
               </div>
