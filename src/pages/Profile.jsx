@@ -28,7 +28,7 @@ export default function Profile() {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("auth_token");
       const response = await fetch("/api/profile", {
         method: "GET",
         headers: {
@@ -54,7 +54,7 @@ export default function Profile() {
     try {
       setSaving(true);
       setMessage(null);
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("auth_token");
       const response = await fetch("/api/profile", {
         method: "PUT",
         headers: {
