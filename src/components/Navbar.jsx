@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import NotificationBell from "./NotificationBell";
+import logo from "../assets/logo.png";
 
 export default function Navbar() {
   const { user, logout, isAuthenticated, isSupervisor, isAdmin } = useAuth();
@@ -10,7 +11,7 @@ export default function Navbar() {
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="text-xl font-bold text-green-500">
-            🎾 Pickleball Courts
+            <img src={logo} alt="Pickleball Courts" className="h-full w-16" />
           </Link>
 
           <div className="flex gap-6 items-center">
