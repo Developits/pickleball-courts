@@ -31,9 +31,16 @@ export async function onRequestPost(context) {
       UPDATE users SET sit_out_until = NULL
     `).run();
     
+    // Clear all check-ins (set checked_out_at to now for all active check-ins)
+    await env.DB.prepare(`
+      UPDATE check_ins 
+      SET checked_out_at = datetime('now') 
+      WHERE checked_out_at IS NULL
+    `).run();
+    
     return createSuccessResponse({
       success: true,
-      message: "Daily reset completed successfully! All stats reset, queue cleared, courts available."
+      message: "Daily reset completed successfully! All stats reset, queue cleared, courts available, check-ins cleared."
     });
   } catch (error) {
     console.error("Error performing daily reset:", error);
