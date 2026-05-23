@@ -1,0 +1,90 @@
+import { supervisorOrAdmin } from "../utils/auth";
+import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
+
+export async function onRequestPost(context) {
+  const { request, env } = context;
+
+  try {
+    const authResult = await supervisorOrAdmin(request, env);
+
+    if (!authResult.authenticated) {
+      return authResult.error;
+    }
+
+    const supervisorId = authResult.user.userId;
+
+    // Get today's date in Shanghai time (UTC+8)
+    const now = new Date();
+    const shanghaiNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const todayDate = shanghaiNow.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    // Check if court is open
+    const session = await env.DB.prepare(`
+      SELECT * FROM court_sessions WHERE date = ?
+    `).bind(todayDate).first();
+
+    if (!session || !session.is_open) {
+      return createSuccessResponse({
+        success: true,
+        message: "Court is already closed!",
+        is_open: false
+      });
+    }
+
+    // --- FULL DAILY RESET (same as daily-reset.js but deletes matches) ---
+
+    // 1. DELETE ALL ONGOING MATCHES COMPLETELY (NO RECORD LEFT)
+    await env.DB.prepare(`
+      DELETE FROM matches WHERE ended_at IS NULL
+    `).run();
+
+    // 2. Reset all courts to available
+    await env.DB.prepare(`
+      UPDATE courts SET status = 'available', current_match_id = NULL
+    `).run();
+
+    // 3. Reset total_matches_today for all users
+    await env.DB.prepare(`
+      UPDATE users SET total_matches_today = 0
+    `).run();
+
+    // 4. Clear all queue entries
+    await env.DB.prepare(`
+      DELETE FROM queue
+    `).run();
+
+    // 5. Clear sit-out periods
+    await env.DB.prepare(`
+      UPDATE users SET sit_out_until = NULL
+    `).run();
+
+    // 6. Clear all active check-ins
+    await env.DB.prepare(`
+      UPDATE check_ins SET checked_out_at = CURRENT_TIMESTAMP WHERE checked_out_at IS NULL
+    `).run();
+
+    // 7. Delete all QR tokens
+    await env.DB.prepare(`
+      DELETE FROM qr_tokens
+    `).run();
+
+    // 8. Mark session as closed
+    await env.DB.prepare(`
+      UPDATE court_sessions 
+      SET is_open = false,
+          closed_at = CURRENT_TIMESTAMP,
+          closed_by_supervisor_id = ?
+      WHERE date = ?
+    `).bind(supervisorId, todayDate).run();
+
+    return createSuccessResponse({
+      success: true,
+      message: "Court closed & full reset completed!",
+      is_open: false,
+      date: todayDate
+    });
+  } catch (error) {
+    console.error("Error closing court:", error);
+    return createErrorResponse("Failed to close court", 500);
+  }
+}

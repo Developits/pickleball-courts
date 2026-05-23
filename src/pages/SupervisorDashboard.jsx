@@ -19,6 +19,9 @@ export default function SupervisorDashboard() {
   const [team1Score, setTeam1Score] = useState("");
   const [team2Score, setTeam2Score] = useState("");
   const [isEndingMatch, setIsEndingMatch] = useState(false);
+  const [isCourtOpen, setIsCourtOpen] = useState(false);
+  const [courtDate, setCourtDate] = useState("");
+  const [isProcessingCourt, setIsProcessingCourt] = useState(false);
 
   const loadAllData = async () => {
     try {
@@ -98,12 +101,16 @@ export default function SupervisorDashboard() {
 
   useEffect(() => {
     // Initial load
-    Promise.resolve().then(loadAllData);
+    Promise.resolve().then(() => {
+      loadAllData();
+      loadCourtStatus();
+    });
 
     // Fallback polling every 10 seconds in case SSE fails
     const fallbackTimer = setInterval(() => {
       if (!sseConnected) {
         loadAllData();
+        loadCourtStatus();
       }
     }, 10000);
 
@@ -129,6 +136,82 @@ export default function SupervisorDashboard() {
       console.error("Error generating QR:", error);
     } finally {
       setLoadingQR(false);
+    }
+  };
+
+  const loadCourtStatus = async () => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch("/api/court/status", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsCourtOpen(data.is_open);
+        setCourtDate(data.date || "");
+      }
+    } catch (error) {
+      console.error("Error loading court status:", error);
+    }
+  };
+
+  const openCourt = async () => {
+    setIsProcessingCourt(true);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch("/api/court/open", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsCourtOpen(true);
+        setCourtDate(data.date);
+        setMessage("✅ " + data.message);
+      } else {
+        setMessage("❌ " + (data.error || "Failed to open court"));
+      }
+    } catch (error) {
+      console.error("Error opening court:", error);
+      setMessage("Error connecting to server");
+    } finally {
+      setIsProcessingCourt(false);
+    }
+  };
+
+  const closeCourt = async () => {
+    if (!confirm("Are you sure you want to close the court? This will delete all ongoing matches, clear the queue, and check out all players.")) {
+      return;
+    }
+    setIsProcessingCourt(true);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch("/api/court/close", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsCourtOpen(false);
+        setMessage("✅ " + data.message);
+        loadAllData();
+      } else {
+        setMessage("❌ " + (data.error || "Failed to close court"));
+      }
+    } catch (error) {
+      console.error("Error closing court:", error);
+      setMessage("Error connecting to server");
+    } finally {
+      setIsProcessingCourt(false);
     }
   };
 
@@ -382,6 +465,47 @@ export default function SupervisorDashboard() {
           {message}
         </div>
       )}
+
+      {/* Court Open/Close Control */}
+      <div className="card mb-4 sm:mb-6">
+        <div className="flex items-center justify-between flex-wrap gap-3 sm:gap-4">
+          <div>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+              Court Session Control
+            </h2>
+            {courtDate && (
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                Today: {courtDate}
+              </p>
+            )}
+          </div>
+          <div className="flex gap-2 sm:gap-3">
+            {!isCourtOpen ? (
+              <button
+                onClick={openCourt}
+                disabled={isProcessingCourt}
+                className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-50"
+              >
+                {isProcessingCourt ? "Opening..." : "Open Court"}
+              </button>
+            ) : (
+              <button
+                onClick={closeCourt}
+                disabled={isProcessingCourt}
+                className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-50"
+              >
+                {isProcessingCourt ? "Closing..." : "Close Court & Reset"}
+              </button>
+            )}
+          </div>
+        </div>
+        <div className={`mt-3 sm:mt-4 px-4 sm:px-5 py-3 rounded-lg flex items-center gap-2 sm:gap-3 ${isCourtOpen ? "bg-green-50 border border-green-200" : "bg-gray-50 border border-gray-200"}`}>
+          <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full ${isCourtOpen ? "bg-green-500 animate-pulse" : "bg-gray-400"}`}></div>
+          <span className={`font-semibold text-sm sm:text-base ${isCourtOpen ? "text-green-700" : "text-gray-600"}`}>
+            {isCourtOpen ? "Court is OPEN for play" : "Court is CLOSED"}
+          </span>
+        </div>
+      </div>
 
       {/* Score Input Modal */}
       {showScoreModal && selectedMatch && (

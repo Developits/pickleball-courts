@@ -3,44 +3,67 @@ import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
-  
+
   try {
     const authResult = await adminOnly(request, env);
-    
+
     if (!authResult.authenticated) {
       return authResult.error;
     }
-    
-    // Reset total_matches_today for all users
+
+    // --- FULL DAILY RESET ---
+
+    // 1. DELETE ALL ONGOING MATCHES COMPLETELY (NO RECORD LEFT)
+    await env.DB.prepare(`
+      DELETE FROM matches WHERE ended_at IS NULL
+    `).run();
+
+    // 2. Reset total_matches_today for all users
     await env.DB.prepare(`
       UPDATE users SET total_matches_today = 0
     `).run();
-    
-    // Clear all queue entries
+
+    // 3. Clear all queue entries
     await env.DB.prepare(`
       DELETE FROM queue
     `).run();
-    
-    // Set all courts to available
+
+    // 4. Set all courts to available
     await env.DB.prepare(`
       UPDATE courts SET status = 'available', current_match_id = NULL
     `).run();
-    
-    // Clear sit-out periods
+
+    // 5. Clear sit-out periods
     await env.DB.prepare(`
       UPDATE users SET sit_out_until = NULL
     `).run();
-    
-    // Clear all check-ins (set checked_out_at to now for all active check-ins)
+
+    // 6. Clear all check-ins
     await env.DB.prepare(`
-      UPDATE check_ins 
-      SET checked_out_at = datetime('now') 
-      WHERE checked_out_at IS NULL
+      UPDATE check_ins SET checked_out_at = CURRENT_TIMESTAMP WHERE checked_out_at IS NULL
     `).run();
-    
+
+    // 7. Delete all QR tokens
+    await env.DB.prepare(`
+      DELETE FROM qr_tokens
+    `).run();
+
+    // Also mark today's court session as closed if open
+    const now = new Date();
+    const shanghaiNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const todayDate = shanghaiNow.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    await env.DB.prepare(`
+      UPDATE court_sessions 
+      SET is_open = false,
+          closed_at = CURRENT_TIMESTAMP,
+          closed_by_supervisor_id = ?
+      WHERE date = ? AND is_open = true
+    `).bind(authResult.user.userId, todayDate).run();
+
     return createSuccessResponse({
       success: true,
-      message: "Daily reset completed successfully! All stats reset, queue cleared, courts available, check-ins cleared."
+      message: "Daily reset completed successfully! All stats reset, queue cleared, courts available, check-ins cleared, ongoing matches deleted."
     });
   } catch (error) {
     console.error("Error performing daily reset:", error);

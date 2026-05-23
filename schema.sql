@@ -36,9 +36,26 @@ CREATE TABLE check_ins (
   checked_out_at DATETIME,
   is_manual BOOLEAN NOT NULL DEFAULT FALSE,
   checked_in_by_supervisor_id INTEGER,
+  geofence_verified BOOLEAN NOT NULL DEFAULT FALSE,
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (checked_in_by_supervisor_id) REFERENCES users(id)
 );
+
+-- Court Sessions Table (Tracks daily court open/close)
+CREATE TABLE court_sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  date TEXT NOT NULL,
+  is_open BOOLEAN NOT NULL DEFAULT FALSE,
+  opened_by_supervisor_id INTEGER,
+  opened_at DATETIME,
+  closed_at DATETIME,
+  closed_by_supervisor_id INTEGER,
+  FOREIGN KEY (opened_by_supervisor_id) REFERENCES users(id),
+  FOREIGN KEY (closed_by_supervisor_id) REFERENCES users(id)
+);
+
+CREATE UNIQUE INDEX idx_court_sessions_date ON court_sessions(date);
+CREATE INDEX idx_court_sessions_is_open ON court_sessions(is_open);
 
 CREATE INDEX idx_checkins_user_id ON check_ins(user_id);
 CREATE INDEX idx_checkins_checked_in_at ON check_ins(checked_in_at);
@@ -174,4 +191,9 @@ INSERT INTO settings (key, value) VALUES
 ('auto_checkout_minutes', '5'),
 ('password_min_length', '8'),
 ('max_login_attempts', '3'),
-('login_lockout_minutes', '5');
+('login_lockout_minutes', '5'),
+('court_latitude', '32.204786'),
+('court_longitude', '118.713767'),
+('geofence_radius_meters', '50'),
+('daily_reset_shanghai_time', '21:00'),
+('queue_lock_shanghai_time', '20:45');
