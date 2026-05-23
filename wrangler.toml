@@ -12,10 +12,6 @@ binding = "DB" # This is how we'll access the database in our code
 database_name = "pickleball-courts"
 database_id = "d70a574a-bcdb-44d0-b1c7-d3784e8d4651" # Replace this with your actual ID!
 
-# Scheduled task: Auto-close court at 21:00 Shanghai time (13:00 UTC)
-[[triggers]]
-cron = "0 13 * * *" # Minute 0, Hour 13 (UTC), every day
-
 # Secrets to set with wrangler secret put:
 # JWT_SECRET - Secret key for JWT token generation (minimum 32 characters)
 # Example: wrangler secret put JWT_SECRET
@@ -26,3 +22,7 @@ cron = "0 13 * * *" # Minute 0, Hour 13 (UTC), every day
 # 3. Updated the database_id above with your actual database ID
 # 4. Set the JWT_SECRET secret
 # 5. Run init-db.sql and migrate_005_court_sessions.sql on your remote database!
+
+# Scheduled tasks for Pages Functions are configured through the Cloudflare Dashboard:
+# Go to Cloudflare Dashboard -> Workers & Pages -> pickleball-courts -> Settings -> Triggers -> Cron Triggers
+# Add a cron trigger: 0 13 * * * (runs at 13:00 UTC = 21:00 Shanghai time)
