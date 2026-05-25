@@ -30,11 +30,11 @@ export default function Profile() {
         },
       });
       const data = await response.json();
-      if (data.success) {
-        setProfile(data.data.user);
-        setStats(data.data.stats);
-        setEditName(data.data.user.name);
-        setEditGender(data.data.user.gender);
+      if (response.ok && data.user) {
+        setProfile(data.user);
+        setStats(data.stats);
+        setEditName(data.user.name);
+        setEditGender(data.user.gender);
       } else {
         setMessage({
           type: "error",
@@ -67,9 +67,9 @@ export default function Profile() {
         body: JSON.stringify({ name: editName, gender: editGender }),
       });
       const data = await response.json();
-      if (data.success) {
-        setProfile(data.data.user);
-        setStats(data.data.stats);
+      if (response.ok && data.user) {
+        setProfile(data.user);
+        setStats(data.stats);
         setIsEditing(false);
         setMessage({ type: "success", text: "Profile updated successfully!" });
       } else {
