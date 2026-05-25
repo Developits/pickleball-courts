@@ -10,6 +10,7 @@ import PlayerDashboard from "./pages/PlayerDashboard";
 import SupervisorDashboard from "./pages/SupervisorDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Profile from "./pages/Profile";
+import GameHistory from "./pages/GameHistory";
 import { useAuth } from "./hooks/useAuth";
 
 function AppContent() {
@@ -45,6 +46,12 @@ function AppContent() {
             <Route path="/profile" element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/game-history" element={
+              <ProtectedRoute>
+                <GameHistory />
               </ProtectedRoute>
             } />
             

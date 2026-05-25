@@ -44,6 +44,14 @@ export default function Navbar() {
               <>
                 <NotificationBell />
 
+                {/* Game History for all users */}
+                <Link
+                  to="/game-history"
+                  className="text-gray-700 hover:text-green-500 transition-colors"
+                >
+                  Game History
+                </Link>
+
                 {/* Admin Specific Nav */}
                 {isAdmin && (
                   <>
