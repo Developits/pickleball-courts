@@ -1,11 +1,11 @@
-import { playerOrAbove } from "../utils/auth";
+import { anyAuthenticated } from "../utils/auth";
 import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
 
 export async function onRequestGet(context) {
   const { request, env } = context;
 
   try {
-    const authResult = await playerOrAbove(request, env);
+    const authResult = await anyAuthenticated(request, env);
 
     if (!authResult.authenticated) {
       return authResult.error;
