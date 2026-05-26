@@ -83,6 +83,22 @@ export default function SupervisorDashboard() {
     }
   }, []);
 
+  // Wrapped in useCallback so the fallback interval holds a stable reference.
+  // IMPORTANT: must be declared BEFORE the useEffect that lists it as a dependency,
+  // otherwise JavaScript's Temporal Dead Zone rule throws a ReferenceError on render.
+  const loadCourtStatus = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/court/status");
+      const data = await res.json();
+      if (data.success) {
+        setIsCourtOpen(data.is_open);
+        setCourtDate(data.date || "");
+      }
+    } catch (error) {
+      console.error("Error loading court status:", error);
+    }
+  }, []);
+
   // Use SSE for real-time updates
   const { data: sseData, connected: sseConnected } = useSSE("/api/events");
 
@@ -125,20 +141,6 @@ export default function SupervisorDashboard() {
       setLoadingQR(false);
     }
   };
-
-  // Wrapped in useCallback so the fallback interval holds a stable reference
-  const loadCourtStatus = useCallback(async () => {
-    try {
-      const res = await apiFetch("/api/court/status");
-      const data = await res.json();
-      if (data.success) {
-        setIsCourtOpen(data.is_open);
-        setCourtDate(data.date || "");
-      }
-    } catch (error) {
-      console.error("Error loading court status:", error);
-    }
-  }, []);
 
   const openCourt = async () => {
     setIsProcessingCourt(true);
