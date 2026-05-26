@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../hooks/useAuth";
+import { useState, useEffect, useCallback } from "react";
+import { apiFetch } from "../api/client";
 
 export default function PendingUsers() {
   const [users, setUsers] = useState([]);
@@ -7,28 +7,21 @@ export default function PendingUsers() {
   const [error, setError] = useState("");
   const [processing, setProcessing] = useState(null);
 
-  useEffect(() => {
-    Promise.resolve().then(fetchPendingUsers);
-  }, []);
-
-  const fetchPendingUsers = async () => {
+  // FIX: function defined BEFORE useEffect so there's no temporal dead-zone risk.
+  // Also wrapped in useCallback so it's stable across renders.
+  const fetchPendingUsers = useCallback(async () => {
     setLoading(true);
     setError("");
 
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/admin/users", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiFetch("/api/admin/users");
 
       if (!response.ok) {
         throw new Error("Failed to fetch users");
       }
 
       const data = await response.json();
-      // Filter only pending users
+      // Filter only pending (unapproved) users
       const pendingUsers = data.users.filter((u) => !u.is_approved);
       setUsers(pendingUsers);
     } catch (err) {
@@ -36,20 +29,19 @@ export default function PendingUsers() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchPendingUsers();
+  }, [fetchPendingUsers]);
 
   const handleApproval = async (userId, action) => {
     setProcessing(userId);
     setError("");
 
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/admin/approve", {
+      const response = await apiFetch("/api/admin/approve", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           user_id: userId,
           action: action, // 'approve' or 'reject'
@@ -62,11 +54,8 @@ export default function PendingUsers() {
         throw new Error(data.error || "Failed to process user");
       }
 
-      // Remove the user from the list
-      setUsers(users.filter((u) => u.id !== userId));
-
-      // Show success message
-      alert(data.message);
+      // Optimistically remove the processed user from the list
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
     } catch (err) {
       setError(err.message);
     } finally {

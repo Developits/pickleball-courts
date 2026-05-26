@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { apiFetch } from "../api/client";
 import { useAuth } from "../hooks/useAuth";
 
 export default function AllUsers() {
@@ -9,17 +10,13 @@ export default function AllUsers() {
   const [filter, setFilter] = useState("all"); // 'all', 'players', 'supervisors', 'admins'
   const { user } = useAuth();
 
-  const fetchUsers = async () => {
+  // Wrapped in useCallback so it can be safely listed in useEffect deps
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     setError("");
 
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/admin/users", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiFetch("/api/admin/users");
 
       if (!response.ok) {
         throw new Error("Failed to fetch users");
@@ -34,24 +31,19 @@ export default function AllUsers() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    Promise.resolve().then(fetchUsers);
-  }, []);
+    fetchUsers();
+  }, [fetchUsers]);
 
   const handleManageUser = async (userId, action, duration = null) => {
     setProcessing(userId);
     setError("");
 
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/admin/manage", {
+      const response = await apiFetch("/api/admin/manage", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           user_id: userId,
           action: action,
@@ -67,9 +59,6 @@ export default function AllUsers() {
 
       // Refresh the user list
       fetchUsers();
-
-      // Show success message
-      alert(data.message);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -77,9 +66,17 @@ export default function AllUsers() {
     }
   };
 
+  // FIX: map plural filter labels → actual singular role values stored in DB
+  // Previously "players" !== "player" so filters always returned 0 results.
+  const roleFilterMap = {
+    players: "player",
+    supervisors: "supervisor",
+    admins: "admin",
+  };
+
   const filteredUsers = users.filter((u) => {
     if (filter === "all") return true;
-    return u.role === filter;
+    return u.role === (roleFilterMap[filter] ?? filter);
   });
 
   const getRoleBadgeColor = (role) => {
@@ -93,11 +90,11 @@ export default function AllUsers() {
     }
   };
 
-  const getStatusBadge = (user) => {
-    if (user.banned_until && new Date(user.banned_until) > new Date()) {
+  const getStatusBadge = (u) => {
+    if (u.banned_until && new Date(u.banned_until) > new Date()) {
       return (
         <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded">
-          Banned until {new Date(user.banned_until).toLocaleDateString()}
+          Banned until {new Date(u.banned_until).toLocaleDateString()}
         </span>
       );
     }
@@ -131,46 +128,19 @@ export default function AllUsers() {
 
       {/* Filter Buttons */}
       <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => setFilter("all")}
-          className={`px-3 py-1 rounded-lg font-medium transition-colors ${
-            filter === "all"
-              ? "bg-green-500 text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-          }`}
-        >
-          All
-        </button>
-        <button
-          onClick={() => setFilter("players")}
-          className={`px-3 py-1 rounded-lg font-medium transition-colors ${
-            filter === "players"
-              ? "bg-green-500 text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-          }`}
-        >
-          Players
-        </button>
-        <button
-          onClick={() => setFilter("supervisors")}
-          className={`px-3 py-1 rounded-lg font-medium transition-colors ${
-            filter === "supervisors"
-              ? "bg-green-500 text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-          }`}
-        >
-          Supervisors
-        </button>
-        <button
-          onClick={() => setFilter("admins")}
-          className={`px-3 py-1 rounded-lg font-medium transition-colors ${
-            filter === "admins"
-              ? "bg-green-500 text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-          }`}
-        >
-          Admins
-        </button>
+        {["all", "players", "supervisors", "admins"].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-3 py-1 rounded-lg font-medium capitalize transition-colors ${
+              filter === f
+                ? "bg-green-500 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            {f}
+          </button>
+        ))}
       </div>
 
       {error && (
@@ -248,32 +218,20 @@ export default function AllUsers() {
                         🚫 Ban
                       </button>
                       <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-                        <button
-                          onClick={() => handleManageUser(u.id, "ban", "hour")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-t-lg"
-                        >
-                          1 Hour
-                        </button>
-                        <button
-                          onClick={() => handleManageUser(u.id, "ban", "day")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                        >
-                          1 Day
-                        </button>
-                        <button
-                          onClick={() => handleManageUser(u.id, "ban", "week")}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                        >
-                          1 Week
-                        </button>
-                        <button
-                          onClick={() =>
-                            handleManageUser(u.id, "ban", "permanent")
-                          }
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-b-lg"
-                        >
-                          Permanent
-                        </button>
+                        {[
+                          { label: "1 Hour", value: "hour" },
+                          { label: "1 Day", value: "day" },
+                          { label: "1 Week", value: "week" },
+                          { label: "Permanent", value: "permanent" },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => handleManageUser(u.id, "ban", opt.value)}
+                            className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg"
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
                       </div>
                     </div>
 

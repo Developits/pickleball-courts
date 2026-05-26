@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { AuthContext } from "./AuthContext";
+import { AUTH_ERROR_EVENT } from "../api/client";
 
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -37,6 +38,17 @@ export default function AuthProvider({ children }) {
     };
 
     initAuth();
+  }, []);
+
+  // Automatically log out when any apiFetch receives a 401 (expired/invalid token)
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("user");
+      setUser(null);
+    };
+    window.addEventListener(AUTH_ERROR_EVENT, handleUnauthorized);
+    return () => window.removeEventListener(AUTH_ERROR_EVENT, handleUnauthorized);
   }, []);
 
   const login = async (studentId, password) => {

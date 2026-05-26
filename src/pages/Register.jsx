@@ -13,6 +13,7 @@ export default function Register() {
     gender: "male",
   });
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -28,10 +29,10 @@ export default function Register() {
 
     try {
       await register(formData);
-      alert(
-        "Registration submitted successfully! Your account will be approved by an admin.",
+      setSuccess(
+        "Registration submitted! Your account will be reviewed and approved by an admin shortly.",
       );
-      navigate("/login");
+      setTimeout(() => navigate("/login"), 2500);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -43,6 +44,12 @@ export default function Register() {
     <div className="max-w-xs sm:max-w-md mx-auto">
       <div className="card">
         <h2 className="text-xl sm:text-2xl font-bold mb-5 sm:mb-6 text-center">Register</h2>
+
+        {success && (
+          <div className="bg-green-100 border border-green-400 text-green-700 px-3 sm:px-4 py-2 sm:py-3 rounded mb-3 sm:mb-4 text-sm sm:text-base">
+            {success}
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded mb-3 sm:mb-4 text-sm sm:text-base">

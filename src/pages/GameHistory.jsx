@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSSE } from "../hooks/useSSE";
+import { apiFetch } from "../api/client";
 
 export default function GameHistory() {
   const [activeTab, setActiveTab] = useState("live");
@@ -8,36 +9,15 @@ export default function GameHistory() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Track the previous live match count to detect completed matches
+  const prevMatchCountRef = useRef(0);
+
   // Use SSE for real-time updates
   const { data: sseData } = useSSE("/api/events");
 
-  const fetchLiveMatches = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/game-history/live", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setLiveMatches(data.matches || []);
-      }
-    } catch (err) {
-      console.error("Error fetching live matches:", err);
-    }
-  }, []);
-
   const fetchHistoryMatches = useCallback(async () => {
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/game-history/history", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
+      const response = await apiFetch("/api/game-history/history");
       if (response.ok) {
         const data = await response.json();
         setHistoryMatches(data.matches || []);
@@ -49,13 +29,7 @@ export default function GameHistory() {
 
   const fetchLeaderboard = useCallback(async () => {
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/game-history/leaderboard", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
+      const response = await apiFetch("/api/game-history/leaderboard");
       if (response.ok) {
         const data = await response.json();
         setLeaderboard(data.leaderboard || []);
@@ -65,27 +39,32 @@ export default function GameHistory() {
     }
   }, []);
 
+  // Initial load: we still need to fetch history and leaderboard once from the API.
+  // Live matches will come from SSE immediately, so we only need to set loading=false
+  // after the non-SSE data is ready.
   useEffect(() => {
-    // Initial fetch on component mount
-    Promise.all([
-      fetchLiveMatches(),
-      fetchHistoryMatches(),
-      fetchLeaderboard(),
-    ]).finally(() => {
+    Promise.all([fetchHistoryMatches(), fetchLeaderboard()]).finally(() => {
       setLoading(false);
     });
-  }, [fetchLiveMatches, fetchHistoryMatches, fetchLeaderboard]);
+  }, [fetchHistoryMatches, fetchLeaderboard]);
 
-  // Refresh data when SSE events occur
+  // FIX: Instead of re-fetching all data on every SSE event, use SSE data directly
+  // for live matches (same pattern as SupervisorDashboard). Only re-fetch completed
+  // match history when we detect a match has ended (active count decreased).
   useEffect(() => {
     if (!sseData) return;
 
-    // Refresh live matches if there's any update
-    Promise.all([
-      fetchLiveMatches(),
-      fetchHistoryMatches(),
-    ]);
-  }, [sseData, fetchLiveMatches, fetchHistoryMatches]);
+    if (sseData.matches !== undefined) {
+      setLiveMatches(sseData.matches);
+
+      // If active match count dropped, a match just ended — refresh history & leaderboard
+      if (sseData.matches.length < prevMatchCountRef.current) {
+        fetchHistoryMatches();
+        fetchLeaderboard();
+      }
+      prevMatchCountRef.current = sseData.matches.length;
+    }
+  }, [sseData, fetchHistoryMatches, fetchLeaderboard]);
 
   const formatGameType = (type) => {
     const types = {
@@ -118,36 +97,23 @@ export default function GameHistory() {
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6 border-b">
-        <button
-          onClick={() => setActiveTab("live")}
-          className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${
-            activeTab === "live"
-              ? "bg-blue-500 text-white"
-              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-          }`}
-        >
-          Live Matches
-        </button>
-        <button
-          onClick={() => setActiveTab("history")}
-          className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${
-            activeTab === "history"
-              ? "bg-blue-500 text-white"
-              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-          }`}
-        >
-          Match History
-        </button>
-        <button
-          onClick={() => setActiveTab("leaderboard")}
-          className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${
-            activeTab === "leaderboard"
-              ? "bg-blue-500 text-white"
-              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-          }`}
-        >
-          Leaderboard
-        </button>
+        {[
+          { id: "live", label: "Live Matches" },
+          { id: "history", label: "Match History" },
+          { id: "leaderboard", label: "Leaderboard" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${
+              activeTab === tab.id
+                ? "bg-blue-500 text-white"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Live Matches Tab */}

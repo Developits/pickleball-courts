@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { apiFetch } from "../api/client";
 
 export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
@@ -6,15 +7,11 @@ export default function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  const loadNotifications = async () => {
+  // Wrapped in useCallback so setInterval always has a fresh reference
+  const loadNotifications = useCallback(async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/notifications", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiFetch("/api/notifications");
       const data = await response.json();
 
       if (data.success) {
@@ -26,17 +23,12 @@ export default function NotificationBell() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const markAsRead = async (notificationId = null) => {
     try {
-      const token = localStorage.getItem("auth_token");
-      await fetch("/api/notifications/mark-read", {
+      await apiFetch("/api/notifications/mark-read", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           notification_id: notificationId,
           mark_all: !notificationId,
@@ -92,11 +84,13 @@ export default function NotificationBell() {
     return date.toLocaleDateString();
   };
 
+  // loadNotifications is stable (useCallback), so this effect won't re-run on
+  // every render and the setInterval will never hold a stale closure.
   useEffect(() => {
-    Promise.resolve().then(loadNotifications);
-    const timer = setInterval(loadNotifications, 30000); // Refresh every 30 seconds
+    loadNotifications();
+    const timer = setInterval(loadNotifications, 30000);
     return () => clearInterval(timer);
-  }, []);
+  }, [loadNotifications]);
 
   return (
     <div className="relative">
@@ -147,7 +141,7 @@ export default function NotificationBell() {
                 notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`mb-2 rounded-lg border-l-4 p-3 ${getNotificationColor(notification.type)} ${!notification.is_read ? "font-medium" : ""}`}
+                    className={`mb-2 rounded-lg border-l-4 p-3 cursor-pointer ${getNotificationColor(notification.type)} ${!notification.is_read ? "font-medium" : ""}`}
                     onClick={() =>
                       !notification.is_read && markAsRead(notification.id)
                     }

@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import PendingUsers from "../components/PendingUsers";
 import { useSSE } from "../hooks/useSSE";
+import { apiFetch } from "../api/client";
 
 export default function SupervisorDashboard() {
   const [qrData, setQrData] = useState(null);
@@ -22,8 +23,11 @@ export default function SupervisorDashboard() {
   const [isCourtOpen, setIsCourtOpen] = useState(false);
   const [courtDate, setCourtDate] = useState("");
   const [isProcessingCourt, setIsProcessingCourt] = useState(false);
+  // Confirm modal state for the destructive "Close Court" action
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
-  const loadAllData = async () => {
+  // Wrapped in useCallback so the fallback setInterval holds a stable reference
+  const loadAllData = useCallback(async () => {
     try {
       const token = localStorage.getItem("auth_token");
 
@@ -41,9 +45,7 @@ export default function SupervisorDashboard() {
 
       // Load queue
       try {
-        const queueResponse = await fetch("/api/queue", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const queueResponse = await apiFetch("/api/queue");
         const queueData = await queueResponse.json();
         if (queueData.queue) {
           setQueue(queueData.queue);
@@ -55,9 +57,7 @@ export default function SupervisorDashboard() {
 
       // Load check-ins
       try {
-        const checkinsResponse = await fetch("/api/checkin/list", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const checkinsResponse = await apiFetch("/api/checkin/list");
         const checkinsData = await checkinsResponse.json();
         if (checkinsData.checked_in_players) {
           setCheckedInPlayers(checkinsData.checked_in_players);
@@ -69,9 +69,7 @@ export default function SupervisorDashboard() {
 
       // Load matches
       try {
-        const matchesResponse = await fetch("/api/matches", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const matchesResponse = await apiFetch("/api/matches");
         const matchesData = await matchesResponse.json();
         if (matchesData.matches) {
           setMatches(matchesData.matches);
@@ -83,7 +81,7 @@ export default function SupervisorDashboard() {
     } catch (error) {
       console.error("Global error loading data:", error);
     }
-  };
+  }, []);
 
   // Use SSE for real-time updates
   const { data: sseData, connected: sseConnected } = useSSE("/api/events");
@@ -91,20 +89,16 @@ export default function SupervisorDashboard() {
   // Update state when SSE data changes
   useEffect(() => {
     if (!sseData) return;
-    Promise.resolve().then(() => {
-      if (sseData.courts) setCourts(sseData.courts);
-      if (sseData.queue) setQueue(sseData.queue);
-      if (sseData.matches) setMatches(sseData.matches);
-      if (sseData.checkedIn) setCheckedInPlayers(sseData.checkedIn);
-    });
+    if (sseData.courts) setCourts(sseData.courts);
+    if (sseData.queue) setQueue(sseData.queue);
+    if (sseData.matches) setMatches(sseData.matches);
+    if (sseData.checkedIn) setCheckedInPlayers(sseData.checkedIn);
   }, [sseData]);
 
   useEffect(() => {
-    // Initial load
-    Promise.resolve().then(() => {
-      loadAllData();
-      loadCourtStatus();
-    });
+    // Initial load — directly, no Promise.resolve indirection
+    loadAllData();
+    loadCourtStatus();
 
     // Fallback polling every 10 seconds in case SSE fails
     const fallbackTimer = setInterval(() => {
@@ -115,19 +109,12 @@ export default function SupervisorDashboard() {
     }, 10000);
 
     return () => clearInterval(fallbackTimer);
-  }, [sseConnected]);
+  }, [sseConnected, loadAllData, loadCourtStatus]);
 
   const generateQR = async () => {
     setLoadingQR(true);
     try {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch("/api/qr/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await apiFetch("/api/qr/generate", { method: "POST" });
       const data = await res.json();
       if (data.success) {
         setQrData(data);
@@ -139,15 +126,10 @@ export default function SupervisorDashboard() {
     }
   };
 
-  const loadCourtStatus = async () => {
+  // Wrapped in useCallback so the fallback interval holds a stable reference
+  const loadCourtStatus = useCallback(async () => {
     try {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch("/api/court/status", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await apiFetch("/api/court/status");
       const data = await res.json();
       if (data.success) {
         setIsCourtOpen(data.is_open);
@@ -156,19 +138,12 @@ export default function SupervisorDashboard() {
     } catch (error) {
       console.error("Error loading court status:", error);
     }
-  };
+  }, []);
 
   const openCourt = async () => {
     setIsProcessingCourt(true);
     try {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch("/api/court/open", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await apiFetch("/api/court/open", { method: "POST" });
       const data = await res.json();
       if (data.success) {
         setIsCourtOpen(true);
@@ -185,20 +160,12 @@ export default function SupervisorDashboard() {
     }
   };
 
+  // FIX: Use a React modal instead of window.confirm() which blocks the event loop
   const closeCourt = async () => {
-    if (!confirm("Are you sure you want to close the court? This will delete all ongoing matches, clear the queue, and check out all players.")) {
-      return;
-    }
+    setShowCloseConfirm(false);
     setIsProcessingCourt(true);
     try {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch("/api/court/close", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await apiFetch("/api/court/close", { method: "POST" });
       const data = await res.json();
       if (data.success) {
         setIsCourtOpen(false);
@@ -215,58 +182,32 @@ export default function SupervisorDashboard() {
     }
   };
 
+  // FIX: Unified DRY version — no more duplicated try/catch blocks
   const changeCourtState = async (courtId, action) => {
-    const token = localStorage.getItem("auth_token");
+    const endpoints = {
+      reserve: "/api/court/reserve",
+      unreserve: "/api/court/unreserve",
+    };
+    const bodies = {
+      reserve: { court_id: courtId, reserved_for: "Chinese Students" },
+      unreserve: { court_id: courtId },
+    };
 
-    if (action === "reserve") {
-      try {
-        const response = await fetch("/api/court/reserve", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            court_id: courtId,
-            reserved_for: "Chinese Students",
-          }),
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-          setMessage("✅ " + data.message);
-          loadAllData();
-        } else {
-          setMessage("❌ " + (data.error || "Failed to reserve court"));
-        }
-      } catch (err) {
-        console.error("Error reserving court:", err);
-        setMessage("Error connecting to server");
+    try {
+      const response = await apiFetch(endpoints[action], {
+        method: "POST",
+        body: JSON.stringify(bodies[action]),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMessage("✅ " + (data.message || "Court updated"));
+        loadAllData();
+      } else {
+        setMessage("❌ " + (data.error || "Failed to update court"));
       }
-    } else if (action === "unreserve") {
-      try {
-        const response = await fetch("/api/court/unreserve", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            court_id: courtId,
-          }),
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-          setMessage("✅ Court released from reservation");
-          loadAllData();
-        } else {
-          setMessage("❌ " + (data.error || "Failed to release reservation"));
-        }
-      } catch (err) {
-        console.error("Error unreserving court:", err);
-        setMessage("Error connecting to server");
-      }
+    } catch (err) {
+      console.error(`Error ${action} court:`, err);
+      setMessage("Error connecting to server");
     }
   };
 
@@ -274,13 +215,8 @@ export default function SupervisorDashboard() {
     setIsAutoAssigning(true);
     setMessage("");
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/matches/auto-assign", {
+      const response = await apiFetch("/api/matches/auto-assign", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
       });
 
       const data = await response.json();
@@ -323,16 +259,12 @@ export default function SupervisorDashboard() {
     }
 
     setIsEndingMatch(true);
-    setShowScoreModal(false);
+    // FIX: Do NOT close the modal before the API call completes.
+    // Keep it open so the user retains context if the request fails.
 
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/matches/end", {
+      const response = await apiFetch("/api/matches/end", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           match_id: selectedMatch.id,
           team1_score: score1,
@@ -342,11 +274,15 @@ export default function SupervisorDashboard() {
 
       const data = await response.json();
       if (response.ok) {
+        // Only close the modal on success
+        setShowScoreModal(false);
+        setSelectedMatch(null);
         setMessage(
           `✅ Match ended! ${data.winner_name} won ${score1}-${score2}`,
         );
         loadAllData();
       } else {
+        // Keep modal open so user can correct their input
         setMessage("❌ " + (data.error || "Failed to end match"));
       }
     } catch (err) {
@@ -354,23 +290,15 @@ export default function SupervisorDashboard() {
       setMessage("Error connecting to server");
     } finally {
       setIsEndingMatch(false);
-      setSelectedMatch(null);
     }
   };
 
   const cancelMatch = async (matchId) => {
     setCancelingMatch(matchId);
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/matches/cancel", {
+      const response = await apiFetch("/api/matches/cancel", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          match_id: matchId,
-        }),
+        body: JSON.stringify({ match_id: matchId }),
       });
 
       const data = await response.json();
@@ -490,7 +418,7 @@ export default function SupervisorDashboard() {
               </button>
             ) : (
               <button
-                onClick={closeCourt}
+                onClick={() => setShowCloseConfirm(true)}
                 disabled={isProcessingCourt}
                 className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-50"
               >
@@ -506,6 +434,32 @@ export default function SupervisorDashboard() {
           </span>
         </div>
       </div>
+
+      {/* Close Court Confirmation Modal */}
+      {showCloseConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold mb-3 text-red-700">Close Court?</h3>
+            <p className="text-gray-600 mb-6">
+              This will <strong>delete all ongoing matches</strong>, clear the queue, and check out all players. This cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={closeCourt}
+                className="btn btn-danger flex-1"
+              >
+                Yes, Close Court
+              </button>
+              <button
+                onClick={() => setShowCloseConfirm(false)}
+                className="btn btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Score Input Modal */}
       {showScoreModal && selectedMatch && (

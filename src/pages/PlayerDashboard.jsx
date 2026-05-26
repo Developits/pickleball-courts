@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { useSSE } from "../hooks/useSSE";
+import { apiFetch } from "../api/client";
 
 export default function PlayerDashboard() {
   const { user } = useAuth();
@@ -21,8 +22,9 @@ export default function PlayerDashboard() {
   const [isQueueLocked, setIsQueueLocked] = useState(false);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
 
-  // Determine available game formats based on gender
-  const availableGameFormats = () => {
+  // FIX: useMemo so formats are only recomputed when userGender changes,
+  // not recreated on every single render.
+  const availableGameFormats = useMemo(() => {
     if (userGender === "male") {
       return [
         { value: "mens_double", label: "Men's Double" },
@@ -37,7 +39,7 @@ export default function PlayerDashboard() {
       ];
     }
     return [{ value: "any", label: "Any" }];
-  };
+  }, [userGender]);
 
   // Use SSE for real-time updates
   const { data: sseData } = useSSE("/api/events");
@@ -45,12 +47,7 @@ export default function PlayerDashboard() {
   const fetchCheckInStatus = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/checkin", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiFetch("/api/checkin");
 
       if (response.ok) {
         const data = await response.json();
@@ -66,12 +63,7 @@ export default function PlayerDashboard() {
 
   const fetchQueueStatus = useCallback(async () => {
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/queue", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiFetch("/api/queue");
 
       if (response.ok) {
         const data = await response.json();
@@ -100,12 +92,7 @@ export default function PlayerDashboard() {
 
   const fetchCourtStatus = useCallback(async () => {
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/court/status", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiFetch("/api/court/status");
 
       if (response.ok) {
         const data = await response.json();
@@ -134,14 +121,8 @@ export default function PlayerDashboard() {
 
       const { latitude, longitude } = position.coords;
 
-      // Send to backend
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/checkin/geofence", {
+      const response = await apiFetch("/api/checkin/geofence", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ latitude, longitude }),
       });
 
@@ -179,49 +160,45 @@ export default function PlayerDashboard() {
   };
 
   useEffect(() => {
-    // Initial fetch on component mount
-    Promise.resolve().then(() => {
-      fetchCheckInStatus();
-      fetchQueueStatus();
-      fetchCourtStatus();
-    });
+    // Initial fetch on component mount — directly, no Promise.resolve indirection
+    fetchCheckInStatus();
+    fetchQueueStatus();
+    fetchCourtStatus();
   }, [fetchCheckInStatus, fetchQueueStatus, fetchCourtStatus]);
 
   // Update all data when SSE data changes (replace polling)
   useEffect(() => {
     if (!sseData) return;
-    Promise.resolve().then(() => {
-      if (sseData.queue) {
-        setQueueData(sseData.queue);
-        // Check if current user is in queue using SSE data
-        const userEntry = sseData.queue?.find(
-          (item) => item.user_id === userId,
-        );
-        if (userEntry) {
-          setInQueue(true);
-          setQueueEntry(userEntry);
-          if (userEntry.game_preference) {
-            setGamePreference(userEntry.game_preference);
-          }
-        } else {
-          setInQueue(false);
-          setQueueEntry(null);
+    if (sseData.queue) {
+      setQueueData(sseData.queue);
+      // Check if current user is in queue using SSE data
+      const userEntry = sseData.queue?.find(
+        (item) => item.user_id === userId,
+      );
+      if (userEntry) {
+        setInQueue(true);
+        setQueueEntry(userEntry);
+        if (userEntry.game_preference) {
+          setGamePreference(userEntry.game_preference);
         }
+      } else {
+        setInQueue(false);
+        setQueueEntry(null);
       }
+    }
 
-      if (sseData.checkedIn) {
-        const currentUserCheckedIn = sseData.checkedIn.find(
-          (c) => c.user_id === userId,
-        );
-        if (currentUserCheckedIn) {
-          setCheckedIn(true);
-          setCheckInData(currentUserCheckedIn);
-        } else {
-          setCheckedIn(false);
-          setCheckInData(null);
-        }
+    if (sseData.checkedIn) {
+      const currentUserCheckedIn = sseData.checkedIn.find(
+        (c) => c.user_id === userId,
+      );
+      if (currentUserCheckedIn) {
+        setCheckedIn(true);
+        setCheckInData(currentUserCheckedIn);
+      } else {
+        setCheckedIn(false);
+        setCheckInData(null);
       }
-    });
+    }
   }, [sseData, userId]);
 
   const handleScan = async (scannedData) => {
@@ -240,19 +217,12 @@ export default function PlayerDashboard() {
 
     console.log("Extracted raw value:", rawValue);
 
-    // Just use the raw value as the token!
-    const token = rawValue;
-
     try {
-      const response = await fetch("/api/qr/validate", {
+      // FIX: Send auth token in Authorization header; let the server extract
+      // the user identity from the JWT instead of trusting client-provided user_id.
+      const response = await apiFetch("/api/qr/validate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          token: token,
-          user_id: user.id,
-        }),
+        body: JSON.stringify({ token: rawValue }),
       });
 
       const data = await response.json();
@@ -274,13 +244,8 @@ export default function PlayerDashboard() {
 
   const joinQueue = async () => {
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/queue/join", {
+      const response = await apiFetch("/api/queue/join", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           game_preference: gamePreference,
         }),
@@ -302,13 +267,8 @@ export default function PlayerDashboard() {
 
   const leaveQueue = async () => {
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/queue/leave", {
+      const response = await apiFetch("/api/queue/leave", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
       });
 
       const data = await response.json();
@@ -702,7 +662,7 @@ export default function PlayerDashboard() {
                       Choose Game Format
                     </h4>
                     <div className="space-y-2 sm:space-y-3">
-                      {availableGameFormats().map((format) => (
+                      {availableGameFormats.map((format) => (
                         <label
                           key={format.value}
                           className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 border rounded-lg cursor-pointer hover:bg-gray-50"

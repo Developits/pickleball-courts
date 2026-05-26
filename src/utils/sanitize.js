@@ -1,30 +1,29 @@
+import DOMPurify from "dompurify";
+
 /**
- * Input sanitization utilities for XSS protection
+ * Input sanitization utilities for XSS protection.
+ *
+ * NOTE: In React JSX, {value} expressions are already XSS-safe (React escapes them).
+ * Use sanitizeForDisplay() ONLY when you need dangerouslySetInnerHTML.
  */
 
+/**
+ * Strips null bytes and ASCII control characters, then trims whitespace.
+ * Safe to use on user input before sending to the server.
+ */
 export function sanitizeInput(input) {
-  if (typeof input !== 'string') {
-    return input;
-  }
-  
-  // Remove null bytes and control characters
-  let sanitized = input.replace(/[\x00-\x1F\x7F]/g, '');
-  
-  // Trim whitespace
-  sanitized = sanitized.trim();
-  
-  return sanitized;
+  if (typeof input !== "string") return input;
+  return input.replace(/[\x00-\x1F\x7F]/g, "").trim();
 }
 
+/**
+ * Sanitizes a string for safe insertion as HTML (dangerouslySetInnerHTML).
+ * Uses DOMPurify (already installed) instead of a manual DOM node approach,
+ * which would crash in non-browser environments (e.g., SSR, Cloudflare Workers).
+ */
 export function sanitizeForDisplay(input) {
-  if (typeof input !== 'string') {
-    return input;
-  }
-  
-  // HTML encode special characters for safe display
-  const div = document.createElement('div');
-  div.textContent = input;
-  return div.innerHTML;
+  if (typeof input !== "string") return input;
+  return DOMPurify.sanitize(input);
 }
 
 export function validateAndSanitizeEmail(email) {
@@ -35,7 +34,6 @@ export function validateAndSanitizeEmail(email) {
 
 export function validateAndSanitizePhone(phone) {
   const sanitized = sanitizeInput(phone);
-  // Remove all non-digit characters
-  const digitsOnly = sanitized.replace(/\D/g, '');
+  const digitsOnly = sanitized.replace(/\D/g, "");
   return digitsOnly.length >= 10 ? digitsOnly : null;
 }

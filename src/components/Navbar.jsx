@@ -6,14 +6,15 @@ import logo from "../assets/Logo.png";
 export default function Navbar() {
   const { user, logout, isAuthenticated, isSupervisor, isAdmin } = useAuth();
 
-  // Function to get user initials for avatar
+  // Safely derive initials — guards against null/undefined/empty name
   const getUserInitials = () => {
-    if (!user) return "??";
-    const nameParts = user.name.split(" ");
-    if (nameParts.length >= 2) {
-      return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+    const name = user?.name;
+    if (!name) return "??";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
-    return user.name[0].toUpperCase();
+    return parts[0][0].toUpperCase();
   };
 
   return (

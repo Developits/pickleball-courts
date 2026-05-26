@@ -75,11 +75,11 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <ErrorBoundary>
-        <Router>
+      <Router>
+        <ErrorBoundary>
           <AppContent />
-        </Router>
-      </ErrorBoundary>
+        </ErrorBoundary>
+      </Router>
     </AuthProvider>
   );
 }

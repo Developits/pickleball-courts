@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { apiFetch } from "../api/client";
 
 export default function Profile() {
   const [profile, setProfile] = useState(null);
@@ -12,23 +13,17 @@ export default function Profile() {
 
   const getUserInitials = (name) => {
     if (!name) return "??";
-    const nameParts = name.split(" ");
-    if (nameParts.length >= 2) {
-      return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
-    return name[0].toUpperCase();
+    return parts[0][0].toUpperCase();
   };
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/profile", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiFetch("/api/profile");
       const data = await response.json();
       if (response.ok && data.user) {
         setProfile(data.user);
@@ -47,23 +42,18 @@ export default function Profile() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    Promise.resolve().then(fetchProfile);
-  }, []);
+    fetchProfile();
+  }, [fetchProfile]);
 
   const handleSave = async () => {
     try {
       setSaving(true);
       setMessage(null);
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/profile", {
+      const response = await apiFetch("/api/profile", {
         method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({ name: editName, gender: editGender }),
       });
       const data = await response.json();
@@ -118,9 +108,7 @@ export default function Profile() {
                 Personal Information
               </h2>
               <button
-                onClick={() =>
-                  isEditing ? setIsEditing(false) : setIsEditing(true)
-                }
+                onClick={() => setIsEditing((prev) => !prev)}
                 className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
               >
                 {isEditing ? "Cancel" : "Edit Profile"}
