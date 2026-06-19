@@ -8,6 +8,18 @@ export class MockD1Database {
     return new MockD1Statement(this, sql.replace(/\s+/g, " ").trim());
   }
 
+  async batch(statements) {
+    const call = {
+      operation: "batch",
+      statements: statements.map((statement) => ({
+        sql: statement.sql,
+        bindings: statement.bindings,
+      })),
+    };
+    this.calls.push(call);
+    return this.handler(call);
+  }
+
   async execute(operation, sql, bindings) {
     const call = { operation, sql, bindings };
     this.calls.push(call);

@@ -2,36 +2,30 @@ import { useAuth } from "../hooks/useAuth";
 import PendingUsers from "../components/PendingUsers";
 import AllUsers from "../components/AllUsers";
 import { useState } from "react";
+import { apiFetch } from "../api/client";
 
 export default function AdminDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("pending");
   const [resetting, setResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState("");
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const handleDailyReset = async () => {
-    if (!confirm("Are you sure you want to perform a daily reset? This will clear queue, reset daily stats, and make all courts available.")) {
-      return;
-    }
-
+    setShowResetConfirm(false);
     setResetting(true);
     setResetMessage("");
 
     try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch("/api/admin/daily-reset", {
+      const response = await apiFetch("/api/admin/daily-reset", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        }
       });
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error("Failed to perform daily reset");
+        throw new Error(data.error || "Failed to perform daily reset");
       }
 
-      const data = await response.json();
       setResetMessage(data.message || "Daily reset completed successfully!");
     } catch (err) {
       setResetMessage("Error: " + err.message);
@@ -53,10 +47,10 @@ export default function AdminDashboard() {
         <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <h3 className="font-semibold text-yellow-800 mb-2">Daily Reset</h3>
           <p className="text-sm text-yellow-700 mb-3">
-            Reset all daily stats, clear queue, and make all courts available.
+            Close today&apos;s court session and clear all unfinished daily activity.
           </p>
           <button
-            onClick={handleDailyReset}
+            onClick={() => setShowResetConfirm(true)}
             disabled={resetting}
             className="bg-yellow-500 hover:bg-yellow-600 disabled:bg-yellow-300 text-white px-4 py-2 rounded-lg transition-colors"
           >
@@ -99,6 +93,52 @@ export default function AdminDashboard() {
         {activeTab === "pending" && <PendingUsers />}
         {activeTab === "users" && <AllUsers />}
       </div>
+
+      {showResetConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="daily-reset-title"
+        >
+          <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+            <h2
+              id="daily-reset-title"
+              className="text-xl font-bold text-gray-900"
+            >
+              Confirm Daily Reset
+            </h2>
+            <p className="mt-3 text-sm text-gray-700">
+              This action closes today&apos;s court session and immediately:
+            </p>
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-gray-700">
+              <li>Deletes all unfinished matches without changing player stats.</li>
+              <li>Resets every player&apos;s daily match counter.</li>
+              <li>Clears the queue and all court reservations.</li>
+              <li>Checks out active players and invalidates QR tokens.</li>
+            </ul>
+            <p className="mt-3 text-sm font-medium text-gray-800">
+              Completed match history and lifetime statistics are preserved.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDailyReset}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+              >
+                Perform Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
