@@ -1,14 +1,34 @@
-import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
+import { authenticateRequest } from "../utils/auth.js";
+import { createSuccessResponse, createErrorResponse } from "../utils/jwt.js";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
   
   try {
+    const authResult = await authenticateRequest(request, env);
+
+    if (!authResult.authenticated) {
+      return authResult.error;
+    }
+
     const body = await request.json();
-    const { token, user_id } = body;
+    const { token } = body;
+    const userId = authResult.user.userId;
     
-    if (!token || !user_id) {
-      return createErrorResponse("Token and user_id are required", 400);
+    if (!token) {
+      return createErrorResponse("Token is required", 400);
+    }
+
+    const now = new Date();
+    const shanghaiNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const todayDate = shanghaiNow.toISOString().split("T")[0];
+
+    const session = await env.DB.prepare(`
+      SELECT id FROM court_sessions WHERE date = ? AND is_open = true
+    `).bind(todayDate).first();
+
+    if (!session) {
+      return createErrorResponse("Court is not open today", 400);
     }
     
     const qrToken = await env.DB.prepare(`
@@ -34,27 +54,27 @@ export async function onRequestPost(context) {
     const activeCheckIn = await env.DB.prepare(`
       SELECT id FROM check_ins 
       WHERE user_id = ? AND checked_out_at IS NULL
-    `).bind(user_id).first();
+    `).bind(userId).first();
     
     if (activeCheckIn) {
-      return createErrorResponse("User is already checked in", 400);
+      return createErrorResponse("You are already checked in", 400);
     }
     
     const user = await env.DB.prepare(`
       SELECT id, name, student_id, banned_until, is_approved FROM users WHERE id = ?
-    `).bind(user_id).first();
+    `).bind(userId).first();
     
     if (!user) {
       return createErrorResponse("User not found", 404);
     }
     
     if (!user.is_approved) {
-      return createErrorResponse("User account is not approved", 403);
+      return createErrorResponse("Your account is not approved", 403);
     }
     
-    if (user.banned_until && new Date(user.banned_until) > new Date()) {
+    if (user.banned_until && new Date(user.banned_until) > now) {
       return createErrorResponse(
-        `User is banned until ${new Date(user.banned_until).toLocaleDateString()}`,
+        `You are banned until ${new Date(user.banned_until).toLocaleDateString()}`,
         403
       );
     }
@@ -62,7 +82,7 @@ export async function onRequestPost(context) {
     await env.DB.prepare(`
       INSERT INTO check_ins (user_id, is_manual, checked_in_by_supervisor_id)
       VALUES (?, FALSE, ?)
-    `).bind(user_id, qrToken.supervisor_id).run();
+    `).bind(userId, qrToken.supervisor_id).run();
     
     await env.DB.prepare(`
       DELETE FROM qr_tokens WHERE id = ?

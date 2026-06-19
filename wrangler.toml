@@ -21,7 +21,7 @@ database_id = "d70a574a-bcdb-44d0-b1c7-d3784e8d4651" # Replace this with your ac
 # 2. Have created the D1 database (wrangler d1 create pickleball-courts)
 # 3. Updated the database_id above with your actual database ID
 # 4. Set the JWT_SECRET secret
-# 5. Run init-db.sql and migrate_005_court_sessions.sql on your remote database!
+# 5. For a new database, run schema.sql. For an existing database, run pending migrations through migrate_008_durable_rate_limits.sql.
 
 # Scheduled tasks for Pages Functions are configured through the Cloudflare Dashboard:
 # Go to Cloudflare Dashboard -> Workers & Pages -> pickleball-courts -> Settings -> Triggers -> Cron Triggers

@@ -35,24 +35,6 @@ export function calculatePriorityScore(queueItem, currentTime) {
   return Math.round(score);
 }
 
-export function isInSitOutPeriod(user, currentTime) {
-  if (!user.sit_out_until) return false;
-  
-  const sitOutUntil = new Date(user.sit_out_until);
-  const now = currentTime || new Date();
-  
-  return now < sitOutUntil;
-}
-
-export function getSitOutEndTime(matchesToSit, currentTime) {
-  // Each "sit out" lasts approximately 1 match duration (estimated 30 minutes)
-  // In a real system, this would be calculated based on actual match endings
-  const now = currentTime || new Date();
-  const sitOutEnd = new Date(now);
-  sitOutEnd.setMinutes(sitOutEnd.getMinutes() + 30 * matchesToSit);
-  return sitOutEnd.toISOString();
-}
-
 export function calculateCourtAllocation(waitingWomen, settings) {
   const defaultMens = parseInt(settings.default_mens_double_courts || '2');
   const defaultMixed = parseInt(settings.default_mixed_double_courts || '1');

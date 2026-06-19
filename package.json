@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "npm run build && wrangler pages dev dist --d1=DB",
     "build": "vite build",
+    "lint": "eslint .",
+    "test": "node --test",
+    "test:watch": "node --test --watch",
+    "check": "npm run lint && npm run test && npm run build",
     "preview": "vite preview",
     "deploy": "npm run build && wrangler pages deploy dist"
   },

@@ -1,13 +1,10 @@
-import { verifyToken, parseAuthHeader, createErrorResponse } from "./jwt";
+import { verifyToken, parseAuthHeader, createErrorResponse } from "./jwt.js";
 
 export async function authenticateRequest(request, env) {
   const authHeader = request.headers.get("Authorization");
   const token = parseAuthHeader(authHeader);
-  
-  console.log("Auth middleware - Token present:", !!token);
-  
+
   if (!token) {
-    console.log("Auth middleware - No token provided");
     return { 
       authenticated: false, 
       error: createErrorResponse("Authentication required", 401) 
@@ -16,11 +13,8 @@ export async function authenticateRequest(request, env) {
   
   const jwtSecret = env.JWT_SECRET || "development-secret-for-local-only-please-change";
   const payload = await verifyToken(token, jwtSecret);
-  
-  console.log("Auth middleware - Token payload:", payload);
-  
+
   if (!payload) {
-    console.log("Auth middleware - Invalid token");
     return { 
       authenticated: false, 
       error: createErrorResponse("Invalid or expired token", 401) 

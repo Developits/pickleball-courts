@@ -1,7 +1,4 @@
--- Migration 005: Add Court Sessions and Geofencing Features
-
--- Add geofence_verified column to check_ins
-ALTER TABLE check_ins ADD COLUMN geofence_verified BOOLEAN NOT NULL DEFAULT FALSE;
+-- Migration 005: Add Court Sessions
 
 -- Create court_sessions table
 CREATE TABLE IF NOT EXISTS court_sessions (
@@ -19,10 +16,7 @@ CREATE TABLE IF NOT EXISTS court_sessions (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_court_sessions_date ON court_sessions(date);
 CREATE INDEX IF NOT EXISTS idx_court_sessions_is_open ON court_sessions(is_open);
 
--- Insert new geofencing settings
+-- Insert court session settings
 INSERT OR IGNORE INTO settings (key, value) VALUES
-('court_latitude', '32.204786'),
-('court_longitude', '118.713767'),
-('geofence_radius_meters', '50'),
 ('daily_reset_shanghai_time', '21:00'),
 ('queue_lock_shanghai_time', '20:45');

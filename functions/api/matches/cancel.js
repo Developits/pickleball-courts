@@ -27,9 +27,9 @@ export async function onRequestPost(context) {
       return createErrorResponse("Active match not found", 404);
     }
     
-    // Update match as canceled (ended without a winner)
+    // Canceled matches are not completed games, so they should not remain in history.
     await env.DB.prepare(`
-      UPDATE matches SET ended_at = CURRENT_TIMESTAMP WHERE id = ?
+      DELETE FROM matches WHERE id = ?
     `).bind(match_id).run();
     
     // Reset court status to available

@@ -16,13 +16,6 @@ export async function onRequestPost(context) {
   const { request, env } = context;
   
   try {
-    console.log("Registration endpoint called");
-    
-    const { studentId, password, name, department, degree, year, gender } =
-      await request.json();
-    
-    console.log("Received data:", { studentId, name, department, degree, year, gender });
-    
     const rateLimitResult = await authRateLimiter(request, env);
     const rateLimitHeaders = getRateLimitHeaders(rateLimitResult);
     
@@ -38,6 +31,9 @@ export async function onRequestPost(context) {
         }
       );
     }
+
+    const { studentId, password, name, department, degree, year, gender } =
+      await request.json();
     
     const validatedData = {
       studentId: sanitizeUserInput(studentId),

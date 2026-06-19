@@ -1,16 +1,30 @@
-import { supervisorOrAdmin } from "../utils/auth";
-import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
-import { calculateCourtAllocation } from "../utils/queue";
-import { sendNotificationToMultiple, NOTIFICATION_TYPES } from "../utils/notifications";
+import { supervisorOrAdmin } from "../utils/auth.js";
+import { createSuccessResponse, createErrorResponse } from "../utils/jwt.js";
+import { calculateCourtAllocation } from "../utils/queue.js";
+import { sendNotificationToMultiple, NOTIFICATION_TYPES } from "../utils/notifications.js";
+import { getCurrentCourtSession } from "../utils/courtSession.js";
+
+class MatchCreationConflictError extends Error {}
 
 export async function onRequestPost(context) {
   const { request, env } = context;
+  const createdMatches = [];
+  let assignmentsCommitted = false;
   
   try {
     const authResult = await supervisorOrAdmin(request, env);
     
     if (!authResult.authenticated) {
       return authResult.error;
+    }
+
+    const courtSession = await getCurrentCourtSession(env);
+
+    if (!courtSession.isOpen) {
+      return createErrorResponse(
+        "Court is closed. Open the court before assigning matches.",
+        409,
+      );
     }
     
     const availableCourts = await env.DB.prepare(`
@@ -22,15 +36,14 @@ export async function onRequestPost(context) {
     }
     
     const queuePlayers = await env.DB.prepare(`
-      SELECT 
+      SELECT
         q.id as queue_id,
         q.user_id,
         q.game_preference,
         q.joined_at,
         u.name,
         u.gender,
-        u.total_matches_today,
-        u.sit_out_until
+        u.total_matches_today
       FROM queue q
       JOIN users u ON q.user_id = u.id
       WHERE q.is_ready = TRUE
@@ -50,13 +63,29 @@ export async function onRequestPost(context) {
     });
     
     const now = new Date();
-    const eligiblePlayers = queuePlayers.results.filter(player => {
-      return !player.sit_out_until || new Date(player.sit_out_until) <= now;
-    });
-    
-    if (eligiblePlayers.length < 4) {
-      return createErrorResponse("Not enough eligible players (some are in sit-out period)", 400);
-    }
+
+    const latestCompletedMatch = await env.DB.prepare(`
+      SELECT
+        team1_player1_id,
+        team1_player2_id,
+        team2_player1_id,
+        team2_player2_id
+      FROM matches
+      WHERE ended_at IS NOT NULL AND deleted_at IS NULL
+      ORDER BY ended_at DESC
+      LIMIT 1
+    `).first();
+
+    const recentPlayerIds = new Set(
+      latestCompletedMatch
+        ? [
+            latestCompletedMatch.team1_player1_id,
+            latestCompletedMatch.team1_player2_id,
+            latestCompletedMatch.team2_player1_id,
+            latestCompletedMatch.team2_player2_id,
+          ].filter(Boolean)
+        : []
+    );
     
     const calculatePriority = (player, nowDate) => {
       let score = 100 * (10 - (player.total_matches_today || 0));
@@ -82,9 +111,10 @@ export async function onRequestPost(context) {
       return Math.round(score);
     };
     
-    const sortedPlayers = eligiblePlayers.map(player => ({
+    const sortedPlayers = queuePlayers.results.map(player => ({
       ...player,
-      priorityScore: calculatePriority(player, now)
+      priorityScore: calculatePriority(player, now),
+      recentlyPlayedLastMatch: recentPlayerIds.has(player.user_id)
     })).sort((a, b) => b.priorityScore - a.priorityScore);
     
     const waitingWomen = sortedPlayers.filter(p => p.gender === 'female').length;
@@ -98,13 +128,19 @@ export async function onRequestPost(context) {
     availableCourtCount -= mixedCourtCount;
     let womensCourtCount = Math.min(allocation.womensCourts, availableCourtCount);
     
-    const createdMatches = [];
     let remainingPlayers = [...sortedPlayers];
-    
-    const femalePlayers = remainingPlayers.filter(p => p.gender === 'female');
-    
-    for (let i = 0; i < womensCourtCount && femalePlayers.length >= 4; i++) {
-      const playersForMatch = femalePlayers.slice(0, 4);
+
+    for (let i = 0; i < womensCourtCount; i++) {
+      const playersForMatch = pickPreferredPlayers(
+        remainingPlayers,
+        4,
+        player => player.gender === 'female'
+      );
+
+      if (playersForMatch.length < 4) {
+        break;
+      }
+
       const result = await createMatch(env, playersForMatch, availableCourts.results[createdMatches.length], 'womens_double');
       createdMatches.push(result);
       
@@ -113,8 +149,16 @@ export async function onRequestPost(context) {
     }
     
     for (let i = 0; i < mixedCourtCount; i++) {
-      const femaleForMatch = remainingPlayers.filter(p => p.gender === 'female').slice(0, 2);
-      const maleForMatch = remainingPlayers.filter(p => p.gender === 'male').slice(0, 2);
+      const femaleForMatch = pickPreferredPlayers(
+        remainingPlayers,
+        2,
+        player => player.gender === 'female'
+      );
+      const maleForMatch = pickPreferredPlayers(
+        remainingPlayers,
+        2,
+        player => player.gender === 'male'
+      );
       
       if (femaleForMatch.length >= 2 && maleForMatch.length >= 2) {
         const playersForMatch = [...femaleForMatch, ...maleForMatch];
@@ -130,7 +174,7 @@ export async function onRequestPost(context) {
     
     let mensCourtLeft = mensCourtCount;
     while (mensCourtLeft > 0 && remainingPlayers.length >= 4) {
-      const playersForMatch = remainingPlayers.slice(0, 4);
+      const playersForMatch = pickPreferredPlayers(remainingPlayers, 4);
       const femaleInThis = playersForMatch.filter(p => p.gender === 'female').length;
       const gameType = femaleInThis === 4 ? 'womens_double' : 'mens_double';
       
@@ -145,8 +189,21 @@ export async function onRequestPost(context) {
     if (createdMatches.length === 0) {
       return createErrorResponse("Could not create any matches with current queue composition", 400);
     }
+
+    const latestCourtSession = await getCurrentCourtSession(env);
+    if (!latestCourtSession.isOpen) {
+      throw new MatchCreationConflictError(
+        "Court closed before match assignment could be completed",
+      );
+    }
     
     const allMatchedPlayerIds = createdMatches.flatMap(m => [m.team1Player1, m.team1Player2, m.team2Player1, m.team2Player2]);
+    const placeholders = allMatchedPlayerIds.map(() => "?").join(", ");
+    await env.DB.prepare(`
+      DELETE FROM queue WHERE user_id IN (${placeholders})
+    `).bind(...allMatchedPlayerIds).run();
+    assignmentsCommitted = true;
+
     await sendNotificationToMultiple(
       env,
       allMatchedPlayerIds,
@@ -161,9 +218,28 @@ export async function onRequestPost(context) {
       message: `Successfully created ${createdMatches.length} match(es)`
     }, 201);
   } catch (error) {
+    if (!assignmentsCommitted && createdMatches.length > 0) {
+      try {
+        await cleanupCreatedMatches(env, createdMatches);
+      } catch (cleanupError) {
+        console.error("Failed to roll back partial match assignment:", cleanupError);
+      }
+    }
+
+    if (error instanceof MatchCreationConflictError) {
+      return createErrorResponse(error.message, 409);
+    }
+
     console.error("Error auto-assigning match:", error);
     return createErrorResponse("Failed to auto-assign match: " + error.message, 500);
   }
+}
+
+function pickPreferredPlayers(players, count, predicate = () => true) {
+  const candidates = players.filter(predicate);
+  const nonRecentPlayers = candidates.filter(player => !player.recentlyPlayedLastMatch);
+  const recentPlayers = candidates.filter(player => player.recentlyPlayedLastMatch);
+  return [...nonRecentPlayers, ...recentPlayers].slice(0, count);
 }
 
 async function createMatch(env, players, court, gameType) {
@@ -171,42 +247,74 @@ async function createMatch(env, players, court, gameType) {
   const team1Player2 = players[2].user_id;
   const team2Player1 = players[1].user_id;
   const team2Player2 = players[3].user_id;
-  
+
+  const playerInfo = await env.DB.prepare(`
+    SELECT id, name FROM users WHERE id IN (?, ?, ?, ?)
+  `).bind(team1Player1, team1Player2, team2Player1, team2Player2).all();
+
+  const playerMap = {};
+  playerInfo.results.forEach(p => {
+    playerMap[p.id] = p.name;
+  });
+
+  const courtSession = await getCurrentCourtSession(env);
+  if (!courtSession.isOpen) {
+    throw new MatchCreationConflictError(
+      "Court closed before match assignment could be completed",
+    );
+  }
+
   const result = await env.DB.prepare(`
     INSERT INTO matches (
       court_id, team1_player1_id, team1_player2_id, 
       team2_player1_id, team2_player2_id, game_type
     )
-    VALUES (?, ?, ?, ?, ?, ?)
+    SELECT ?, ?, ?, ?, ?, ?
+    WHERE EXISTS (
+      SELECT 1 FROM court_sessions WHERE date = ? AND is_open = TRUE
+    )
+    AND EXISTS (
+      SELECT 1 FROM courts WHERE id = ? AND status = 'available'
+    )
   `).bind(
     court.id,
     team1Player1, team1Player2,
     team2Player1, team2Player2,
-    gameType
+    gameType,
+    courtSession.date,
+    court.id,
   ).run();
+
+  if (result.meta.changes !== 1) {
+    const latestSession = await getCurrentCourtSession(env);
+    throw new MatchCreationConflictError(
+      latestSession.isOpen
+        ? `${court.name} is no longer available`
+        : "Court closed before match assignment could be completed",
+    );
+  }
   
   const matchId = result.meta.last_row_id;
   
-  await env.DB.prepare(`
+  const courtUpdate = await env.DB.prepare(`
     UPDATE courts SET status = 'occupied', current_match_id = ?
     WHERE id = ?
-  `).bind(matchId, court.id).run();
-  
-  for (const userId of [team1Player1, team1Player2, team2Player1, team2Player2]) {
-    await env.DB.prepare(`
-      DELETE FROM queue WHERE user_id = ?
-    `).bind(userId).run();
+      AND status = 'available'
+      AND EXISTS (
+        SELECT 1 FROM court_sessions WHERE date = ? AND is_open = TRUE
+      )
+  `).bind(matchId, court.id, courtSession.date).run();
+
+  if (courtUpdate.meta.changes !== 1) {
+    await env.DB.prepare(`DELETE FROM matches WHERE id = ?`).bind(matchId).run();
+    const latestSession = await getCurrentCourtSession(env);
+    throw new MatchCreationConflictError(
+      latestSession.isOpen
+        ? `${court.name} is no longer available`
+        : "Court closed before match assignment could be completed",
+    );
   }
-  
-  const playerInfo = await env.DB.prepare(`
-    SELECT id, name FROM users WHERE id IN (?, ?, ?, ?)
-  `).bind(team1Player1, team1Player2, team2Player1, team2Player2).all();
-  
-  const playerMap = {};
-  playerInfo.results.forEach(p => {
-    playerMap[p.id] = p.name;
-  });
-  
+
   return {
     match_id: matchId,
     court_id: court.id,
@@ -221,4 +329,19 @@ async function createMatch(env, players, court, gameType) {
       team2: [playerMap[team2Player1], playerMap[team2Player2]]
     }
   };
+}
+
+async function cleanupCreatedMatches(env, matches) {
+  for (const match of matches) {
+    await env.DB.prepare(`DELETE FROM matches WHERE id = ?`)
+      .bind(match.match_id)
+      .run();
+    await env.DB.prepare(`
+      UPDATE courts
+      SET status = 'available', current_match_id = NULL
+      WHERE id = ? AND current_match_id = ?
+    `)
+      .bind(match.court_id, match.match_id)
+      .run();
+  }
 }

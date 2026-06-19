@@ -29,11 +29,12 @@ export default function SupervisorDashboard() {
   // Wrapped in useCallback so the fallback setInterval holds a stable reference
   const loadAllData = useCallback(async () => {
     try {
-      const token = localStorage.getItem("auth_token");
-
       // Load courts first
       try {
-        const courtsResponse = await fetch("/api/court/list");
+        const courtsResponse = await apiFetch("/api/court/list");
+        if (!courtsResponse.ok) {
+          throw new Error("Failed to fetch courts");
+        }
         const courtsData = await courtsResponse.json();
         if (courtsData.courts) {
           setCourts(courtsData.courts);
@@ -89,13 +90,15 @@ export default function SupervisorDashboard() {
   const loadCourtStatus = useCallback(async () => {
     try {
       const res = await apiFetch("/api/court/status");
-      const data = await res.json();
-      if (data.success) {
-        setIsCourtOpen(data.is_open);
-        setCourtDate(data.date || "");
+      if (!res.ok) {
+        throw new Error("Failed to load court status");
       }
+      const data = await res.json();
+      setIsCourtOpen(data.is_open);
+      setCourtDate(data.date || "");
     } catch (error) {
       console.error("Error loading court status:", error);
+      setMessage("Failed to load court status. Please refresh the page.");
     }
   }, []);
 
@@ -214,6 +217,11 @@ export default function SupervisorDashboard() {
   };
 
   const autoAssignMatch = async () => {
+    if (!isCourtOpen) {
+      setMessage("Court is closed. Open the court before assigning matches.");
+      return;
+    }
+
     setIsAutoAssigning(true);
     setMessage("");
     try {
@@ -315,25 +323,6 @@ export default function SupervisorDashboard() {
       setMessage("Error connecting to server");
     } finally {
       setCancelingMatch(null);
-    }
-  };
-
-  const getCourtStatusBadge = (court) => {
-    if (court.status === "available") {
-      return <span className="text-green-600 font-bold">Free</span>;
-    } else if (court.status === "reserved") {
-      return (
-        <div>
-          <span className="text-orange-600 font-bold">Reserved</span>
-          {court.reserved_for && (
-            <div className="text-xs text-gray-600">
-              for {court.reserved_for}
-            </div>
-          )}
-        </div>
-      );
-    } else {
-      return <span className="text-gray-600">In Use</span>;
     }
   };
 
@@ -690,10 +679,17 @@ export default function SupervisorDashboard() {
                 <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t">
                   <button
                     onClick={autoAssignMatch}
-                    disabled={isAutoAssigning}
+                    disabled={isAutoAssigning || !isCourtOpen}
+                    title={
+                      isCourtOpen
+                        ? "Auto-assign the next match"
+                        : "Open the court before assigning matches"
+                    }
                     className="btn btn-primary w-full"
                   >
-                    {isAutoAssigning
+                    {!isCourtOpen
+                      ? "Open Court to Assign Matches"
+                      : isAutoAssigning
                       ? "Assigning Match..."
                       : "Auto-Assign Next Match"}
                   </button>

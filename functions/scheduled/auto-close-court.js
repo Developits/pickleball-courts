@@ -1,4 +1,4 @@
-export async function scheduled(event, env, ctx) {
+export async function scheduled(event, env) {
   console.log("Starting auto-close court task...");
 
   try {
@@ -39,22 +39,17 @@ export async function scheduled(event, env, ctx) {
       DELETE FROM queue
     `).run();
 
-    // 5. Clear sit-out periods
-    await env.DB.prepare(`
-      UPDATE users SET sit_out_until = NULL
-    `).run();
-
-    // 6. Clear all active check-ins
+    // 5. Clear all active check-ins
     await env.DB.prepare(`
       UPDATE check_ins SET checked_out_at = CURRENT_TIMESTAMP WHERE checked_out_at IS NULL
     `).run();
 
-    // 7. Delete all QR tokens
+    // 6. Delete all QR tokens
     await env.DB.prepare(`
       DELETE FROM qr_tokens
     `).run();
 
-    // 8. Mark session as closed (auto-closed, no supervisor)
+    // 7. Mark session as closed (auto-closed, no supervisor)
     await env.DB.prepare(`
       UPDATE court_sessions 
       SET is_open = false,

@@ -33,17 +33,12 @@ export async function onRequestPost(context) {
       UPDATE courts SET status = 'available', current_match_id = NULL
     `).run();
 
-    // 5. Clear sit-out periods
-    await env.DB.prepare(`
-      UPDATE users SET sit_out_until = NULL
-    `).run();
-
-    // 6. Clear all check-ins
+    // 5. Clear all check-ins
     await env.DB.prepare(`
       UPDATE check_ins SET checked_out_at = CURRENT_TIMESTAMP WHERE checked_out_at IS NULL
     `).run();
 
-    // 7. Delete all QR tokens
+    // 6. Delete all QR tokens
     await env.DB.prepare(`
       DELETE FROM qr_tokens
     `).run();

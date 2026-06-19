@@ -1,6 +1,10 @@
-import { authenticateRequest } from "../utils/auth";
-import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
-import { sendNotificationToMultiple, NOTIFICATION_TYPES } from "../utils/notifications";
+import { authenticateRequest } from "../utils/auth.js";
+import { createSuccessResponse, createErrorResponse } from "../utils/jwt.js";
+import { sendNotificationToMultiple, NOTIFICATION_TYPES } from "../utils/notifications.js";
+import {
+  getCurrentCourtSession,
+  getQueueLockState,
+} from "../utils/courtSession.js";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -13,6 +17,21 @@ export async function onRequestPost(context) {
     }
     
     const userId = authResult.user.userId;
+
+    const courtSession = await getCurrentCourtSession(env);
+
+    if (!courtSession.isOpen) {
+      return createErrorResponse("Court is not open today", 400);
+    }
+
+    const queueLock = await getQueueLockState(env, courtSession.time);
+
+    if (queueLock.isQueueLocked) {
+      return createErrorResponse(
+        "Queue is locked because court closing time is near",
+        403
+      );
+    }
     
     const activeCheckIn = await env.DB.prepare(`
       SELECT id FROM check_ins 
@@ -34,13 +53,6 @@ export async function onRequestPost(context) {
     const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?")
       .bind(userId).first();
     
-    if (user.sit_out_until && new Date(user.sit_out_until) > new Date()) {
-      return createErrorResponse(
-        `You must wait until ${new Date(user.sit_out_until).toLocaleTimeString()} before joining the queue`,
-        403
-      );
-    }
-    
     let gamePreference = "any";
     try {
       const body = await request.json();
@@ -49,6 +61,11 @@ export async function onRequestPost(context) {
       }
     } catch {
       // Use default "any"
+    }
+
+    const allowedPreferences = ["any", "mens_double", "womens_double", "mixed_double"];
+    if (!allowedPreferences.includes(gamePreference)) {
+      return createErrorResponse("Invalid game preference", 400);
     }
     
     await env.DB.prepare(`

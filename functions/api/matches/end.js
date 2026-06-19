@@ -81,14 +81,6 @@ export async function onRequestPost(context) {
       winner_name = "Tie";
     }
 
-    const settings = await env.DB.prepare(
-      `
-      SELECT value FROM settings WHERE key = 'sit_out_matches'
-    `,
-    ).first();
-
-    const sitOutMatches = parseInt(settings?.value || "1", 10);
-
     // Determine loser team
     const loserTeamPlayerIds =
       winner_team === 1
@@ -158,7 +150,7 @@ export async function onRequestPost(context) {
         .run();
     }
 
-    // Update losses and sit-out period for loser team (only if there's a loser)
+    // Update losses for loser team (only if there's a loser)
     for (const userId of loserTeamPlayerIds) {
       await env.DB.prepare(
         `
@@ -166,15 +158,6 @@ export async function onRequestPost(context) {
       `,
       )
         .bind(userId)
-        .run();
-
-      await env.DB.prepare(
-        `
-        UPDATE users SET sit_out_until = datetime(CURRENT_TIMESTAMP, '+' || ? || ' minutes')
-        WHERE id = ?
-      `,
-      )
-        .bind(sitOutMatches, userId)
         .run();
     }
 
@@ -207,7 +190,6 @@ export async function onRequestPost(context) {
       winner_team: winner_team,
       winner_name: winner_name,
       score: formattedScore,
-      sit_out_for: loserTeamPlayerIds,
     });
   } catch (error) {
     console.error("Error ending match:", error);

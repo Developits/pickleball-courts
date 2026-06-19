@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { useSSE } from "../hooks/useSSE";
@@ -20,7 +20,15 @@ export default function PlayerDashboard() {
   const [isCourtOpen, setIsCourtOpen] = useState(false);
   const [courtDate, setCourtDate] = useState("");
   const [isQueueLocked, setIsQueueLocked] = useState(false);
-  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [stats, setStats] = useState({
+    totalMatches: 0,
+    wins: 0,
+    losses: 0,
+    winRate: 0,
+  });
+  const hasMatchSnapshotRef = useRef(false);
+  const wasInActiveMatchRef = useRef(false);
+  const statsRefreshTimerRef = useRef(null);
 
   // FIX: useMemo so formats are only recomputed when userGender changes,
   // not recreated on every single render.
@@ -105,66 +113,32 @@ export default function PlayerDashboard() {
     }
   }, []);
 
-  const handleGeolocationCheckIn = async () => {
-    setMessage("");
-    setIsCheckingIn(true);
-
+  const fetchStats = useCallback(async () => {
     try {
-      // Request location permission
-      const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0,
-        });
-      });
-
-      const { latitude, longitude } = position.coords;
-
-      const response = await apiFetch("/api/checkin/geofence", {
-        method: "POST",
-        body: JSON.stringify({ latitude, longitude }),
-      });
-
+      const response = await apiFetch("/api/profile");
       const data = await response.json();
 
-      if (response.ok) {
-        setMessage("✅ " + (data.message || "Successfully checked in!"));
-        setCheckedIn(true);
-        fetchCheckInStatus();
+      if (response.ok && data.stats) {
+        setStats(data.stats);
       } else {
-        setMessage("❌ " + (data.error || "Failed to check in"));
+        console.error("Failed to load player statistics:", data.error);
       }
     } catch (err) {
-      console.error("Error in geolocation check-in:", err);
-      if (err.code === 1) {
-        setMessage(
-          "❌ Location access denied. Please allow location permissions or use the QR scanner instead.",
-        );
-      } else if (err.code === 2) {
-        setMessage(
-          "❌ Unable to get your location. Please check your GPS and try again, or use the QR scanner.",
-        );
-      } else if (err.code === 3) {
-        setMessage(
-          "❌ Location request timed out. Please try again or use the QR scanner.",
-        );
-      } else {
-        setMessage(
-          "❌ Error checking in. Please try again or use the QR scanner.",
-        );
-      }
-    } finally {
-      setIsCheckingIn(false);
+      console.error("Error fetching player statistics:", err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     // Initial fetch on component mount — directly, no Promise.resolve indirection
     fetchCheckInStatus();
     fetchQueueStatus();
     fetchCourtStatus();
-  }, [fetchCheckInStatus, fetchQueueStatus, fetchCourtStatus]);
+    fetchStats();
+  }, [fetchCheckInStatus, fetchQueueStatus, fetchCourtStatus, fetchStats]);
+
+  useEffect(() => {
+    return () => clearTimeout(statsRefreshTimerRef.current);
+  }, []);
 
   // Update all data when SSE data changes (replace polling)
   useEffect(() => {
@@ -201,8 +175,33 @@ export default function PlayerDashboard() {
     }
   }, [sseData, userId]);
 
+  useEffect(() => {
+    if (!userId || !Array.isArray(sseData?.matches)) return;
+
+    const isInActiveMatch = sseData.matches.some((match) =>
+      [
+        match.team1_player1_id,
+        match.team1_player2_id,
+        match.team2_player1_id,
+        match.team2_player2_id,
+      ].includes(userId),
+    );
+
+    if (
+      hasMatchSnapshotRef.current &&
+      wasInActiveMatchRef.current &&
+      !isInActiveMatch
+    ) {
+      fetchStats();
+      clearTimeout(statsRefreshTimerRef.current);
+      statsRefreshTimerRef.current = setTimeout(fetchStats, 1500);
+    }
+
+    hasMatchSnapshotRef.current = true;
+    wasInActiveMatchRef.current = isInActiveMatch;
+  }, [sseData, userId, fetchStats]);
+
   const handleScan = async (scannedData) => {
-    console.log("handleScan called with data:", scannedData);
     setMessage("");
 
     // The Scanner returns an array of results, extract the rawValue
@@ -215,18 +214,13 @@ export default function PlayerDashboard() {
       return;
     }
 
-    console.log("Extracted raw value:", rawValue);
-
     try {
-      // FIX: Send auth token in Authorization header; let the server extract
-      // the user identity from the JWT instead of trusting client-provided user_id.
       const response = await apiFetch("/api/qr/validate", {
         method: "POST",
         body: JSON.stringify({ token: rawValue }),
       });
 
       const data = await response.json();
-      console.log("API Response:", data);
 
       if (response.ok) {
         setMessage("✅ Successfully checked in!");
@@ -296,12 +290,10 @@ export default function PlayerDashboard() {
     );
   }
 
-  // Calculate win rate
-  const totalMatches = user?.total_matches || 0;
-  const wins = user?.wins || 0;
-  const losses = user?.losses || 0;
-  const winRate =
-    totalMatches > 0 ? Math.round((wins / totalMatches) * 100) : 0;
+  const totalMatches = stats.totalMatches;
+  const wins = stats.wins;
+  const losses = stats.losses;
+  const winRate = stats.winRate;
 
   return (
     <div>
@@ -463,44 +455,6 @@ export default function PlayerDashboard() {
           </div>
         </div>
 
-        {isCourtOpen && !checkedIn && (
-          <button
-            onClick={handleGeolocationCheckIn}
-            disabled={isCheckingIn}
-            className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 bg-linear-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-50"
-          >
-            {isCheckingIn ? (
-              <div className="flex items-center gap-2 justify-center">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Checking your location...
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 justify-center">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-                Check In (Use My Location)
-              </div>
-            )}
-          </button>
-        )}
-
         {isQueueLocked && (
           <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-yellow-700 text-sm sm:text-base">
@@ -545,11 +499,6 @@ export default function PlayerDashboard() {
                     ? new Date(checkInData.checked_in_at).toLocaleString()
                     : "just now"}
                 </p>
-                {checkInData?.geofence_verified && (
-                  <p className="text-xs text-green-500 mt-1">
-                    ✓ Verified via geolocation
-                  </p>
-                )}
               </div>
             </div>
           </div>
@@ -557,8 +506,7 @@ export default function PlayerDashboard() {
           <div className="space-y-3 sm:space-y-4">
             {isCourtOpen && (
               <p className="text-gray-600 text-sm sm:text-base">
-                Check in using your location (primary), or scan a QR code
-                (fallback).
+                Scan the supervisor QR code at the court to check in.
               </p>
             )}
 
@@ -568,11 +516,10 @@ export default function PlayerDashboard() {
               </p>
             )}
 
-            {/* QR Scanner - Fallback */}
             {isCourtOpen && (
-              <div className="border-t pt-3 sm:pt-4">
+              <div className="pt-1">
                 <h4 className="font-bold mb-2 text-sm sm:text-base">
-                  Or Scan QR Code (Fallback)
+                  Scan QR Code
                 </h4>
 
                 {!scannerActive ? (

@@ -13,7 +13,13 @@ import DOMPurify from "dompurify";
  */
 export function sanitizeInput(input) {
   if (typeof input !== "string") return input;
-  return input.replace(/[\x00-\x1F\x7F]/g, "").trim();
+  return Array.from(input)
+    .filter((character) => {
+      const codePoint = character.codePointAt(0);
+      return codePoint >= 32 && codePoint !== 127;
+    })
+    .join("")
+    .trim();
 }
 
 /**

@@ -14,7 +14,6 @@ CREATE TABLE users (
   total_matches_today INTEGER NOT NULL DEFAULT 0,
   wins INTEGER NOT NULL DEFAULT 0,
   losses INTEGER NOT NULL DEFAULT 0,
-  sit_out_until DATETIME,
   warnings INTEGER NOT NULL DEFAULT 0,
   banned_until DATETIME,
   push_subscription TEXT, -- For PWA push notifications
@@ -28,7 +27,7 @@ CREATE INDEX idx_users_student_id ON users(student_id);
 CREATE INDEX idx_users_banned_until ON users(banned_until);
 CREATE INDEX idx_users_deleted_at ON users(deleted_at);
 
--- Daily Check-ins Table (Prevents dorm check-ins)
+-- Daily Check-ins Table (QR and supervisor/manual check-ins)
 CREATE TABLE check_ins (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
@@ -36,7 +35,6 @@ CREATE TABLE check_ins (
   checked_out_at DATETIME,
   is_manual BOOLEAN NOT NULL DEFAULT FALSE,
   checked_in_by_supervisor_id INTEGER,
-  geofence_verified BOOLEAN NOT NULL DEFAULT FALSE,
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (checked_in_by_supervisor_id) REFERENCES users(id)
 );
@@ -170,6 +168,16 @@ CREATE INDEX idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX idx_notifications_is_read ON notifications(is_read);
 CREATE INDEX idx_notifications_created_at ON notifications(created_at);
 
+-- Durable API Rate Limits
+CREATE TABLE rate_limits (
+  key TEXT PRIMARY KEY,
+  request_count INTEGER NOT NULL DEFAULT 0,
+  window_started_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_rate_limits_expires_at ON rate_limits(expires_at);
+
 -- System Settings Table (All rules configurable here)
 CREATE TABLE settings (
   key TEXT PRIMARY KEY,
@@ -181,7 +189,6 @@ INSERT INTO courts (name) VALUES ('Court 1'), ('Court 2'), ('Court 3');
 
 -- Insert all default system rules (matches our algorithm)
 INSERT INTO settings (key, value) VALUES
-('sit_out_matches', '1'),
 ('late_arrival_time', '20:30'),
 ('late_arrival_priority_threshold', '2'),
 ('default_mens_double_courts', '2'),
@@ -192,8 +199,5 @@ INSERT INTO settings (key, value) VALUES
 ('password_min_length', '8'),
 ('max_login_attempts', '3'),
 ('login_lockout_minutes', '5'),
-('court_latitude', '32.204786'),
-('court_longitude', '118.713767'),
-('geofence_radius_meters', '50'),
 ('daily_reset_shanghai_time', '21:00'),
 ('queue_lock_shanghai_time', '20:45');

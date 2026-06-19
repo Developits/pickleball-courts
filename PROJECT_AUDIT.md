@@ -402,10 +402,6 @@ npm config set audit-level=low
 ⚠️ REVIEW create-supervisor.js
    Reason: Still needed to create supervisors?
    Recommendation: Keep if you still need CLI supervisor creation
-
-⚠️ REVIEW init-db.sql
-   Reason: Similar to schema.sql, may be duplicate
-   Recommendation: Compare both files, keep only one as source of truth
 ```
 
 ### 8.3 Files to Keep
@@ -436,13 +432,7 @@ rm create-admin-example.sql
 rm migrate_001.sql
 rm DEPLOYMENT.md
 
-# 2. Verify schema.sql and init-db.sql are identical
-diff schema.sql init-db.sql
-
-# 3. If identical, delete init-db.sql
-rm init-db.sql
-
-# 4. Commit changes
+# 2. Commit changes
 git add -A
 git commit -m "Cleanup: Remove redundant and unused files"
 git push
