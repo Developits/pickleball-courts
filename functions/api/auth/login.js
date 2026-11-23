@@ -1,10 +1,15 @@
 import bcrypt from "bcryptjs";
-import { generateToken, createErrorResponse } from "../utils/jwt";
-import { validateStudentId, validatePassword } from "../utils/validation";
-import { loginRateLimiter, getRateLimitHeaders } from "../utils/rateLimit";
+import { generateToken, createErrorResponse } from "../utils/jwt.js";
+import { getJwtSecret } from "../utils/auth.js";
+import { validateStudentId, validatePassword } from "../utils/validation.js";
+import { loginRateLimiter, getRateLimitHeaders } from "../utils/rateLimit.js";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
+  const jwtSecret = getJwtSecret(env);
+  if (!jwtSecret) {
+    return createErrorResponse("Authentication is not configured", 503);
+  }
 
   try {
     const rateLimitResult = await loginRateLimiter(request, env);
@@ -60,8 +65,6 @@ export async function onRequestPost(context) {
       );
     }
 
-    const jwtSecret =
-      env.JWT_SECRET || "development-secret-for-local-only-please-change";
     const token = await generateToken(
       {
         userId: user.id,

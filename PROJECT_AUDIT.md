@@ -1,5 +1,10 @@
 # Pickleball Court Management System - Complete Project Audit
 
+> **Historical report:** this document records an earlier assessment, not a
+> current security or production-readiness certification. Some conclusions and
+> completion claims below are outdated. See [README.md](README.md) for current
+> limitations and GitHub Actions for reproducible checks.
+
 **Date:** May 17, 2026  
 **Auditor:** AI Code Assistant  
 **Project Status:** Active Development  

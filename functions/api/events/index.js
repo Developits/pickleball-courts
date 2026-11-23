@@ -3,48 +3,56 @@
  * Note: This implementation uses a simple polling approach within SSE
  * For production with multiple instances, consider using Durable Objects
  */
+import { authenticateRequest } from "../utils/auth.js";
 
 export async function onRequestGet(context) {
   const { request, env } = context;
   
-  // Get token from query parameter or Authorization header
-  const url = new URL(request.url);
-  const token = url.searchParams.get('token') || 
-                request.headers.get("Authorization")?.replace("Bearer ", "");
-  
-  if (!token) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-  
-  // Verify the token
-  try {
-    const jwtSecret = env.JWT_SECRET || "development-secret-for-local-only-please-change";
-    const { verifyToken } = await import("../utils/jwt");
-    const payload = await verifyToken(token, jwtSecret);
-    
-    if (!payload) {
-      return new Response("Invalid token", { status: 401 });
-    }
-  } catch (error) {
-    console.error("Token verification error:", error);
-    return new Response("Invalid token", { status: 401 });
-  }
+  // Match the rest of the API: fail closed without a configured secret.
+  // The frontend uses fetch streaming and sends an Authorization header.
+  // Do not accept query-string tokens, which can leak into URLs and logs.
+  const authResult = await authenticateRequest(request, env);
+  if (!authResult.authenticated) return authResult.error;
   
   // Create a readable stream for SSE
   const encoder = new TextEncoder();
+  let intervalId;
+  let stopped = false;
+  let stop;
   
   const stream = new ReadableStream({
     async start(controller) {
+      stop = (closeStream = true) => {
+        if (stopped) return;
+        stopped = true;
+        clearInterval(intervalId);
+        request.signal.removeEventListener("abort", onAbort);
+        if (closeStream) controller.close();
+      };
+      const onAbort = () => stop();
       const sendEvent = (eventName, data) => {
+        if (stopped) return;
         const message = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
         controller.enqueue(encoder.encode(message));
       };
+
+      if (request.signal.aborted) {
+        stop();
+        return;
+      }
       
       // Send initial connection message
       sendEvent("connected", { message: "SSE connection established" });
       
       // Poll for updates every 2 seconds
-      const intervalId = setInterval(async () => {
+      let polling = false;
+      intervalId = setInterval(async () => {
+        if (stopped || polling) return;
+        if (authResult.user.exp <= Math.floor(Date.now() / 1000)) {
+          stop();
+          return;
+        }
+        polling = true;
         try {
           // Fetch latest data from the database
           const courts = await env.DB.prepare(`
@@ -98,23 +106,24 @@ export async function onRequestGet(context) {
         } catch (error) {
           console.error("SSE update error:", error);
           sendEvent("error", { message: "Error fetching updates" });
+        } finally {
+          polling = false;
         }
       }, 2000); // Update every 2 seconds
       
       // Handle client disconnect
-      request.signal.addEventListener("abort", () => {
-        clearInterval(intervalId);
-        controller.close();
-      });
-    }
+      request.signal.addEventListener("abort", onAbort, { once: true });
+    },
+    cancel() {
+      // A canceled response body is already closed by the stream machinery.
+      stop(false);
+    },
   });
   
   return new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
-      "Access-Control-Allow-Origin": "*"
     }
   });
 }

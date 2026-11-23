@@ -1,5 +1,10 @@
 import { verifyToken, parseAuthHeader, createErrorResponse } from "./jwt.js";
 
+export function getJwtSecret(env) {
+  const secret = env.JWT_SECRET;
+  return typeof secret === "string" && secret.trim().length >= 32 ? secret : null;
+}
+
 export async function authenticateRequest(request, env) {
   const authHeader = request.headers.get("Authorization");
   const token = parseAuthHeader(authHeader);
@@ -11,10 +16,17 @@ export async function authenticateRequest(request, env) {
     };
   }
   
-  const jwtSecret = env.JWT_SECRET || "development-secret-for-local-only-please-change";
+  const jwtSecret = getJwtSecret(env);
+  if (!jwtSecret) {
+    return {
+      authenticated: false,
+      error: createErrorResponse("Authentication is not configured", 503),
+    };
+  }
   const payload = await verifyToken(token, jwtSecret);
 
-  if (!payload) {
+  if (!payload || !Number.isSafeInteger(payload.userId) || payload.userId < 1
+      || !["player", "supervisor", "admin"].includes(payload.role)) {
     return { 
       authenticated: false, 
       error: createErrorResponse("Invalid or expired token", 401) 
