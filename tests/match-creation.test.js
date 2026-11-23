@@ -41,7 +41,9 @@ test("manual and automatic match creation reject a closed court", async () => {
   }
 });
 
-test("manual match creation guards the insert and mutates players only after court reservation", async () => {
+test("manual match creation guards the insert and mutates players only after court reservation", async (t) => {
+  // Freeze Date, including Date.now() used by JWTs; never depend on test day.
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-06-19T04:00:00Z") });
   let matchInserted = false;
   let courtReserved = false;
   let queueDeletes = 0;
