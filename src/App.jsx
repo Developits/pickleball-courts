@@ -1,9 +1,10 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import AuthProvider from "./contexts/AuthProvider";
 import Navbar from "./components/Navbar";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";
+import MemberHome from "./pages/MemberHome";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import PlayerDashboard from "./pages/PlayerDashboard";
@@ -14,7 +15,7 @@ import GameHistory from "./pages/GameHistory";
 import { useAuth } from "./hooks/useAuth";
 
 function AppContent() {
-  const { loading } = useAuth();
+  const { loading, isAuthenticated } = useAuth();
 
   if (loading) {
     return (
@@ -32,9 +33,9 @@ function AppContent() {
       <Navbar />
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-4xl lg:max-w-6xl xl:max-w-7xl">
         <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/" element={isAuthenticated ? <MemberHome /> : <Home />} />
+            <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
+            <Route path="/register" element={isAuthenticated ? <Navigate to="/" replace /> : <Register />} />
             
             {/* Protected Routes */}
             <Route path="/dashboard" element={

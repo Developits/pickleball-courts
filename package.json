@@ -8,8 +8,11 @@
     "dev": "npm run build && wrangler pages dev dist --d1=DB",
     "build": "vite build",
     "lint": "eslint . --max-warnings 0",
-    "test": "node --test",
-    "test:watch": "node --test --watch",
+    "test": "npm run test:api && npm run test:ui",
+    "test:api": "node --test tests/*.test.js",
+    "test:ui": "vitest run",
+    "test:watch": "vitest",
+    "test:api:watch": "node --test --watch tests/*.test.js",
     "check:functions": "wrangler pages functions build --outdir=.wrangler/functions-build",
     "check": "npm run lint && npm run test && npm run build && npm run check:functions",
     "preview": "vite preview",
@@ -29,6 +32,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.13",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
@@ -36,7 +41,9 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "jsdom": "31.0.1",
     "vite": "^8.0.12",
+    "vitest": "5.1.1",
     "wrangler": "4.166.0"
   },
   "engines": {
