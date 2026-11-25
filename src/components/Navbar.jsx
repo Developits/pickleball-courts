@@ -20,12 +20,12 @@ export default function Navbar() {
   return (
     <nav className="bg-white shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex flex-wrap justify-between items-center min-h-16 py-3 gap-3">
           <Link to="/" className="text-xl font-bold text-green-500">
             <img src={logo} alt="Pickleball Courts" className="h-full w-16" />
           </Link>
 
-          <div className="flex gap-4 items-center">
+          <div className="flex flex-wrap gap-3 sm:gap-4 items-center text-sm sm:text-base">
             {!isAuthenticated ? (
               <>
                 <Link
@@ -43,6 +43,7 @@ export default function Navbar() {
               </>
             ) : (
               <>
+                <Link to="/" className="text-gray-700 hover:text-green-500 transition-colors">Home</Link>
                 <NotificationBell />
 
                 {/* Game History for all users */}

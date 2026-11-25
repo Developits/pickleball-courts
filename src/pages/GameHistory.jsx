@@ -1,281 +1,142 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useSSE } from "../hooks/useSSE";
-import { apiFetch } from "../api/client";
+import { useRef } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import { useMatchCenter } from "../hooks/useMatchCenter";
+import MatchCard from "../components/MatchCard";
+import ResourceFeedback from "../components/ResourceFeedback";
+
+const TABS = [
+  { id: "live", label: "Live matches" },
+  { id: "leaderboard", label: "Leaderboard" },
+  { id: "history", label: "Match history" },
+];
 
 export default function GameHistory() {
-  const [activeTab, setActiveTab] = useState("live");
-  const [liveMatches, setLiveMatches] = useState([]);
-  const [historyMatches, setHistoryMatches] = useState([]);
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const [params, setParams] = useSearchParams();
+  const activeTab = TABS.some(tab => tab.id === params.get("tab")) ? params.get("tab") : "live";
+  const scope = params.get("scope") === "mine" ? "mine" : "all";
+  const { live, history, leaderboard, connected, refresh } = useMatchCenter({ scope });
+  const tabRefs = useRef({});
+  const active = ({ live, history, leaderboard })[activeTab];
+  const selectTab = (id) => setParams(previous => {
+    const next = new URLSearchParams(previous);
+    next.set("tab", id);
+    return next;
+  });
+  const selectScope = (value) => setParams(previous => {
+    const next = new URLSearchParams(previous);
+    next.set("scope", value);
+    return next;
+  });
 
-  // Track the previous live match count to detect completed matches
-  const prevMatchCountRef = useRef(0);
-
-  // Use SSE for real-time updates
-  const { data: sseData } = useSSE("/api/events");
-
-  const fetchHistoryMatches = useCallback(async () => {
-    try {
-      const response = await apiFetch("/api/game-history/history");
-      if (response.ok) {
-        const data = await response.json();
-        setHistoryMatches(data.matches || []);
-      }
-    } catch (err) {
-      console.error("Error fetching match history:", err);
-    }
-  }, []);
-
-  const fetchLeaderboard = useCallback(async () => {
-    try {
-      const response = await apiFetch("/api/game-history/leaderboard");
-      if (response.ok) {
-        const data = await response.json();
-        setLeaderboard(data.leaderboard || []);
-      }
-    } catch (err) {
-      console.error("Error fetching leaderboard:", err);
-    }
-  }, []);
-
-  // Initial load: we still need to fetch history and leaderboard once from the API.
-  // Live matches will come from SSE immediately, so we only need to set loading=false
-  // after the non-SSE data is ready.
-  useEffect(() => {
-    Promise.all([fetchHistoryMatches(), fetchLeaderboard()]).finally(() => {
-      setLoading(false);
-    });
-  }, [fetchHistoryMatches, fetchLeaderboard]);
-
-  // FIX: Instead of re-fetching all data on every SSE event, use SSE data directly
-  // for live matches (same pattern as SupervisorDashboard). Only re-fetch completed
-  // match history when we detect a match has ended (active count decreased).
-  useEffect(() => {
-    if (!sseData) return;
-
-    if (sseData.matches !== undefined) {
-      setLiveMatches(sseData.matches);
-
-      // If active match count dropped, a match just ended — refresh history & leaderboard
-      if (sseData.matches.length < prevMatchCountRef.current) {
-        fetchHistoryMatches();
-        fetchLeaderboard();
-      }
-      prevMatchCountRef.current = sseData.matches.length;
-    }
-  }, [sseData, fetchHistoryMatches, fetchLeaderboard]);
-
-  const formatGameType = (type) => {
-    const types = {
-      mens_double: "Men's Double",
-      womens_double: "Women's Double",
-      mixed_double: "Mix Double",
-    };
-    return types[type] || type;
+  const handleTabKey = (event, index) => {
+    let next;
+    if (event.key === "ArrowRight") next = (index + 1) % TABS.length;
+    if (event.key === "ArrowLeft") next = (index + TABS.length - 1) % TABS.length;
+    if (event.key === "Home") next = 0;
+    if (event.key === "End") next = TABS.length - 1;
+    if (next === undefined) return;
+    event.preventDefault();
+    selectTab(TABS[next].id);
+    tabRefs.current[TABS[next].id]?.focus();
   };
-
-  const formatDateTime = (dateStr) => {
-    if (!dateStr) return "";
-    return new Date(dateStr).toLocaleString();
-  };
-
-  if (loading) {
-    return (
-      <div className="text-center py-12">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-green-500 border-t-transparent"></div>
-        <p className="mt-4 text-gray-600">Loading...</p>
-      </div>
-    );
-  }
 
   return (
-    <div>
-      <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">
-        Game History
-      </h1>
+    <div className="space-y-6">
+      <header className="flex flex-wrap justify-between items-center gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Game history</h1>
+          <p className="text-sm text-gray-500 mt-2">
+            {connected ? "Live updates connected" : "Live updates reconnecting · automatic refresh every 30 seconds"}
+          </p>
+        </div>
+        <button type="button" className="btn btn-secondary" onClick={refresh} disabled={active.refreshing}>
+          {active.refreshing ? "Refreshing…" : "Refresh"}
+        </button>
+      </header>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b">
-        {[
-          { id: "live", label: "Live Matches" },
-          { id: "history", label: "Match History" },
-          { id: "leaderboard", label: "Leaderboard" },
-        ].map((tab) => (
+      <div role="tablist" aria-label="Game history views" className="flex gap-1 border-b border-gray-200 overflow-x-auto">
+        {TABS.map((tab, index) => (
           <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${
-              activeTab === tab.id
-                ? "bg-blue-500 text-white"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-            }`}
+            type="button" key={tab.id} role="tab" id={`tab-${tab.id}`}
+            aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`}
+            tabIndex={activeTab === tab.id ? 0 : -1}
+            ref={element => { tabRefs.current[tab.id] = element; }}
+            onKeyDown={event => handleTabKey(event, index)}
+            onClick={() => selectTab(tab.id)}
+            className={`whitespace-nowrap px-4 py-3 text-sm sm:text-base font-semibold border-b-2 transition-colors ${activeTab === tab.id ? "border-green-600 text-green-700" : "border-transparent text-gray-500 hover:text-gray-900"}`}
           >
             {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Live Matches Tab */}
-      {activeTab === "live" && (
-        <div className="card">
-          <h2 className="text-xl font-bold mb-4">Ongoing Matches</h2>
-          {liveMatches.length === 0 ? (
-            <p className="text-gray-500">No ongoing matches at the moment.</p>
-          ) : (
-            <div className="space-y-4">
-              {liveMatches.map((match) => (
-                <div
-                  key={match.id}
-                  className="p-4 border rounded-lg bg-gray-50"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <span className="font-semibold">{match.court_name}</span>
-                      <span className="ml-2 text-sm text-gray-500">
-                        {formatGameType(match.game_type)}
-                      </span>
-                    </div>
-                    <span className="text-sm text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                      Live
-                    </span>
-                  </div>
+      <section role="tabpanel" id={`panel-${activeTab}`} aria-labelledby={`tab-${activeTab}`} tabIndex={0} className="card">
+        {activeTab === "live" && (
+          <>
+            <h2 className="text-xl font-bold mb-4">On court now</h2>
+            <ResourceFeedback resource={live} label="live matches" />
+            {!live.loading && !live.error && !live.records.length && <p className="text-gray-500 py-6">No ongoing matches. Games appear here when a supervisor starts a match.</p>}
+            <div className="space-y-4">{live.records.map(match => <MatchCard key={match.id} match={match} />)}</div>
+          </>
+        )}
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="font-medium text-sm text-gray-500 mb-1">Team 1</p>
-                      <p className="font-semibold">
-                        {match.team1_player1_name} & {match.team1_player2_name}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm text-gray-500 mb-1">Team 2</p>
-                      <p className="font-semibold">
-                        {match.team2_player1_name} & {match.team2_player2_name}
-                      </p>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-gray-400 mt-2">
-                    Started: {formatDateTime(match.started_at)}
-                  </p>
-                </div>
-              ))}
+        {activeTab === "history" && (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h2 className="text-xl font-bold">Completed matches</h2>
+              <label className="text-sm text-gray-600">
+                Show{" "}
+                <select aria-label="History scope" value={scope} onChange={event => selectScope(event.target.value)} className="border border-gray-300 rounded-lg p-2">
+                  <option value="all">All matches</option>
+                  <option value="mine">My matches</option>
+                </select>
+              </label>
             </div>
-          )}
-        </div>
-      )}
+            <ResourceFeedback resource={history} label="match history" />
+            {!history.loading && !history.error && !history.records.length && <p className="text-gray-500 py-6">{scope === "mine" ? "You have no completed matches yet." : "No completed matches yet."} Results appear after a supervisor records the score.</p>}
+            <div className="space-y-4">{history.records.map(match => <MatchCard key={match.id} match={match} />)}</div>
+            {history.hasMore && (
+              <button type="button" className="btn btn-secondary mt-5 w-full" disabled={history.loadingMore || history.refreshing} onClick={history.loadMore}>
+                {history.loadingMore ? "Loading more…" : "Load more matches"}
+              </button>
+            )}
+          </>
+        )}
 
-      {/* Match History Tab */}
-      {activeTab === "history" && (
-        <div className="card">
-          <h2 className="text-xl font-bold mb-4">Past Matches</h2>
-          {historyMatches.length === 0 ? (
-            <p className="text-gray-500">No match history yet.</p>
-          ) : (
-            <div className="space-y-4">
-              {historyMatches.map((match) => (
-                <div
-                  key={match.id}
-                  className="p-4 border rounded-lg bg-gray-50"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <span className="font-semibold">{match.court_name}</span>
-                      <span className="ml-2 text-sm text-gray-500">
-                        {formatGameType(match.game_type)}
-                      </span>
-                    </div>
-                    <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                      {match.score || "N/A"}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="font-medium text-sm text-gray-500 mb-1">Team 1</p>
-                      <p
-                        className={`font-semibold ${
-                          match.winner_team === 1 ? "text-green-600" : ""
-                        }`}
-                      >
-                        {match.team1_player1_name} & {match.team1_player2_name}
-                        {match.winner_team === 1 && " ✓"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm text-gray-500 mb-1">Team 2</p>
-                      <p
-                        className={`font-semibold ${
-                          match.winner_team === 2 ? "text-green-600" : ""
-                        }`}
-                      >
-                        {match.team2_player1_name} & {match.team2_player2_name}
-                        {match.winner_team === 2 && " ✓"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-gray-400 mt-2">
-                    Ended: {formatDateTime(match.ended_at)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Leaderboard Tab */}
-      {activeTab === "leaderboard" && (
-        <div className="card">
-          <h2 className="text-xl font-bold mb-4">Leaderboard</h2>
-          {leaderboard.length === 0 ? (
-            <p className="text-gray-500">No players on the leaderboard yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 px-3 font-semibold text-gray-600">Rank</th>
-                    <th className="text-left py-2 px-3 font-semibold text-gray-600">Name</th>
-                    <th className="text-left py-2 px-3 font-semibold text-gray-600">Points</th>
-                    <th className="text-left py-2 px-3 font-semibold text-gray-600">Matches</th>
-                    <th className="text-left py-2 px-3 font-semibold text-gray-600">Wins</th>
-                    <th className="text-left py-2 px-3 font-semibold text-gray-600">Win Rate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {leaderboard.map((player) => (
-                    <tr key={player.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-3">
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white ${
-                            player.rank === 1
-                              ? "bg-yellow-500"
-                              : player.rank === 2
-                              ? "bg-gray-400"
-                              : player.rank === 3
-                              ? "bg-orange-600"
-                              : "bg-blue-500"
-                          }`}
-                        >
-                          {player.rank}
-                        </div>
-                      </td>
-                      <td className="py-3 px-3 font-medium">{player.name}</td>
-                      <td className="py-3 px-3 font-semibold text-blue-600">{player.points}</td>
-                      <td className="py-3 px-3">{player.total_matches}</td>
-                      <td className="py-3 px-3 text-green-600">{player.wins}</td>
-                      <td className="py-3 px-3 font-medium">{player.win_rate_percent}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+        {activeTab === "leaderboard" && (
+          <>
+            <h2 className="text-xl font-bold">Club leaderboard</h2>
+            <p className="text-sm text-gray-500 mt-2 mb-4">Ranked by win rate, then wins. Each win earns 2 points. Only completed, non-deleted matches count; draws count as a match but not a win or loss.</p>
+            <ResourceFeedback resource={leaderboard} label="leaderboard" />
+            {!leaderboard.loading && !leaderboard.error && !leaderboard.records.length && <p className="text-gray-500 py-6">No completed matches yet. Finish a scored match to join the leaderboard.</p>}
+            {leaderboard.records.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <caption className="sr-only">Player rankings from completed matches</caption>
+                  <thead className="border-b text-gray-500">
+                    <tr>{["Rank", "Player", "Points", "Matches", "Wins", "Losses", "Win rate"].map(label => <th key={label} scope="col" className="p-3 whitespace-nowrap">{label}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {leaderboard.records.map(player => (
+                      <tr key={player.id} className={`border-b ${Number(player.id) === Number(user?.id) ? "bg-green-50" : "hover:bg-gray-50"}`}>
+                        <td className="p-3 font-bold">#{player.rank}</td>
+                        <th scope="row" className="p-3 font-semibold">{player.name}{Number(player.id) === Number(user?.id) && <span className="ml-2 text-xs text-green-700">(you)</span>}</th>
+                        <td className="p-3 font-semibold text-blue-700">{player.points}</td>
+                        <td className="p-3">{player.total_matches}</td>
+                        <td className="p-3 text-green-700">{player.wins}</td>
+                        <td className="p-3">{player.losses}</td>
+                        <td className="p-3 font-semibold">{player.win_rate_percent}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }

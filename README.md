@@ -71,6 +71,24 @@ Admin approves account
 There are no default privileged credentials. New registrations remain pending
 until an admin approves them.
 
+### Signed-in home and match center
+
+Signed-out visitors see the public landing page. After login, `/` shows a
+personalized member home with court availability, completed-match statistics,
+recent personal results, and shortcuts appropriate to the user's role.
+
+The game-history page supports direct links to
+`/game-history?tab=live`, `?tab=leaderboard`, and `?tab=history&scope=mine`.
+Live matches load over REST immediately and then update through SSE, with a
+30-second refresh fallback when the stream is disconnected. History supports
+all-club/personal filtering and paginated loading. Failures show retry controls,
+not misleading empty-result messages.
+
+Leaderboards derive statistics from completed, non-deleted match records,
+not cached user counters. Rankings sort by win rate, then wins, with stable
+name/ID tie-breakers. Wins earn two points; draws count toward matches played
+but not wins or losses. Unplayed, unapproved, and deleted accounts do not rank.
+
 ## Stack
 
 - React 19 and Vite
@@ -191,7 +209,10 @@ Available commands:
 | `npm run build` | Create the production frontend build |
 | `npm run lint` | Lint application, Functions, scripts, and tests |
 | `npm test` | Run focused API and utility tests |
-| `npm run test:watch` | Rerun tests while files change |
+| `npm run test:api` | Run Node API tests, including real SQLite match-center queries |
+| `npm run test:ui` | Run React UI and asynchronous resource tests with Vitest |
+| `npm run test:watch` | Watch React UI tests |
+| `npm run test:api:watch` | Watch API and utility tests |
 | `npm run check:functions` | Compile Pages Functions locally without deploying |
 | `npm run check` | Run lint, tests, frontend build, and Functions compilation |
 | `npm run preview` | Preview static assets only; this does not run the API |
@@ -207,8 +228,11 @@ npm audit
 GitHub Actions runs these gates on pushes and pull requests. Tests exercise
 authentication and token expiry, court/queue guards, match creation, reset
 ordering, persistent rate limits, SSE framing, stream cleanup, and Shanghai
-date boundaries. The D1 route tests use mocked adapters; they are not a claim
-of end-to-end production or concurrency verification.
+date boundaries. Match-center read routes execute against an in-memory SQLite
+schema; other operational route tests use mocked D1 adapters. React tests cover
+member routing, role shortcuts, tab navigation, pagination, retries, refreshes,
+and stale-response handling. This is not a claim of end-to-end production or
+concurrency verification.
 
 Wrangler is pinned in the lockfile instead of relying on a globally installed
 CLI. The Workbox `glob` dependency has a targeted patched-version override;

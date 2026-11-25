@@ -1,5 +1,6 @@
-import { anyAuthenticated } from "../utils/auth";
-import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
+import { anyAuthenticated } from "../utils/auth.js";
+import { createSuccessResponse, createErrorResponse } from "../utils/jwt.js";
+import { LEADERBOARD_QUERY } from "../utils/gameHistory.js";
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -11,25 +12,7 @@ export async function onRequestGet(context) {
       return authResult.error;
     }
 
-    // Get leaderboard - all approved users, sorted by win rate (desc), then wins (desc), then name
-    const users = await env.DB.prepare(
-      `
-      SELECT 
-        id,
-        name,
-        total_matches,
-        wins,
-        losses,
-        -- Calculate win rate (handle division by zero)
-        CASE 
-          WHEN total_matches > 0 THEN CAST(wins AS FLOAT) / total_matches 
-          ELSE 0 
-        END AS win_rate
-      FROM users
-      WHERE is_approved = TRUE AND deleted_at IS NULL
-      ORDER BY win_rate DESC, wins DESC, name ASC
-      `,
-    ).all();
+    const users = await env.DB.prepare(LEADERBOARD_QUERY).all();
 
     // Calculate points (2 per win)
     const leaderboard = users.results.map((user, index) => ({
@@ -46,6 +29,6 @@ export async function onRequestGet(context) {
     });
   } catch (error) {
     console.error("Error fetching leaderboard:", error);
-    return createErrorResponse("Failed to fetch leaderboard: " + error.message, 500);
+    return createErrorResponse("Failed to fetch leaderboard", 500);
   }
 }

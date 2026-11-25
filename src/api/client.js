@@ -38,3 +38,15 @@ export async function apiFetch(url, options = {}) {
 
   return response;
 }
+
+export async function apiJson(url, options = {}) {
+  const response = await apiFetch(url, options);
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error("The server returned an unexpected response. Please try again.");
+  }
+  if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
+  return data;
+}
