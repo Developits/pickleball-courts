@@ -12,6 +12,14 @@ binding = "DB" # This is how we'll access the database in our code
 database_name = "pickleball-courts"
 database_id = "d70a574a-bcdb-44d0-b1c7-d3784e8d4651" # Replace this with your actual ID!
 
+# Keep preview deployments away from production data. This overrides the
+# top-level DB binding for preview builds only; production still uses the
+# database above. The preview database is initialized from schema.sql.
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "pickleball-courts-preview"
+database_id = "383c4265-15cc-41ce-a26b-0029b2f7869c"
+
 # Secrets to set with wrangler pages secret put:
 # JWT_SECRET - Secret key for JWT token generation (minimum 32 characters)
 # Example: wrangler pages secret put JWT_SECRET --project-name YOUR_PAGES_PROJECT

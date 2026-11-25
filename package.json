@@ -13,6 +13,7 @@
     "test:ui": "vitest run",
     "test:watch": "vitest",
     "test:api:watch": "node --test --watch tests/*.test.js",
+    "test:tournaments:local": "node tests/tournament-local-d1.mjs && node tests/tournament-pages.mjs",
     "check:functions": "wrangler pages functions build --outdir=.wrangler/functions-build",
     "check": "npm run lint && npm run test && npm run build && npm run check:functions",
     "preview": "vite preview",

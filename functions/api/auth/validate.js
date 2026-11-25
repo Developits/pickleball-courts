@@ -1,5 +1,6 @@
-import { createSuccessResponse, createErrorResponse } from "../utils/jwt";
-import { authenticateRequest } from "../utils/auth";
+import { createSuccessResponse, createErrorResponse } from "../utils/jwt.js";
+import { authenticateRequest } from "../utils/auth.js";
+import { capabilities } from "../utils/tournaments/policy.js";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -37,6 +38,7 @@ export async function onRequestPost(context) {
         name: user.name,
         role: user.role,
         gender: user.gender,
+        capabilities: await capabilities(env.DB,user.id),
       },
     });
   } catch {

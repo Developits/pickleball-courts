@@ -71,6 +71,7 @@ test("configured login checks bcrypt passwords and returns a usable signed sessi
   const password = "TestPassword123";
   const hash = await bcrypt.hash(password, 4);
   const database = new MockD1Database(({ sql }) => {
+    if (sql.includes("FROM user_capabilities")) return { results: [] };
     if (sql.startsWith("INSERT INTO rate_limits")) {
       return { request_count: 1, expires_at: Math.floor(Date.now() / 1000) + 60 };
     }

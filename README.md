@@ -319,6 +319,18 @@ The older [PROJECT_AUDIT.md](PROJECT_AUDIT.md) is historical context. Its
 production-readiness percentages are not a current assessment; use the
 documented limitations and reproducible checks instead.
 
+## Tournament module — Phase 1 implementation
+
+The separate tournament module is specified in
+[PRD.md](PRD.md), [ARCHITECTURE.md](ARCHITECTURE.md),
+[DATABASE.md](DATABASE.md), and [TASKS.md](TASKS.md).
+
+Phase 1 (Admin-created drafts, Organizer capability/staff assignments, category
+metadata and audit) is implemented on an unmerged local branch. Registration,
+draws, scheduling, scoring, publication and production rollout remain
+unimplemented and require separate approval. Existing casual court workflows are
+unchanged.
+
 ## Project Layout
 
 ```text
