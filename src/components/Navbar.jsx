@@ -4,7 +4,7 @@ import NotificationBell from "./NotificationBell";
 import logo from "../assets/Logo.png";
 
 export default function Navbar() {
-  const { user, logout, isAuthenticated, isSupervisor, isAdmin } = useAuth();
+  const { user, logout, isAuthenticated, isSupervisor, isAdmin, isTournamentOrganizer } = useAuth();
 
   // Safely derive initials — guards against null/undefined/empty name
   const getUserInitials = () => {
@@ -44,6 +44,9 @@ export default function Navbar() {
             ) : (
               <>
                 <Link to="/" className="text-gray-700 hover:text-green-500 transition-colors">Home</Link>
+                {(isAdmin || isSupervisor || isTournamentOrganizer) && (
+                  <Link to="/tournaments" className="text-gray-700 hover:text-green-500 transition-colors">Tournaments</Link>
+                )}
                 <NotificationBell />
 
                 {/* Game History for all users */}

@@ -7,12 +7,25 @@ export function createSqliteDb() {
   sqlite.exec(readFileSync(new URL("../../schema.sql", import.meta.url), "utf8"));
   return {
     sqlite,
+    async batch(statements) {
+      sqlite.exec("BEGIN IMMEDIATE");
+      try {
+        const results = statements.map(statement => statement.runSync());
+        sqlite.exec("COMMIT");
+        return results;
+      } catch (error) { sqlite.exec("ROLLBACK"); throw error; }
+    },
     prepare(sql) {
       let bindings = [];
       const statement = {
         bind(...values) { bindings = values; return statement; },
         async all() { return { results: sqlite.prepare(sql).all(...bindings) }; },
         async first() { return sqlite.prepare(sql).get(...bindings) ?? null; },
+        runSync() {
+          const result = sqlite.prepare(sql).run(...bindings);
+          return { meta: { changes:Number(result.changes), last_row_id:Number(result.lastInsertRowid) } };
+        },
+        async run() { return statement.runSync(); },
       };
       return statement;
     },

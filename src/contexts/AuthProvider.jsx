@@ -111,6 +111,7 @@ export default function AuthProvider({ children }) {
   const isAuthenticated = !!user;
   const isSupervisor = user?.role === "supervisor" || user?.role === "admin";
   const isAdmin = user?.role === "admin";
+  const isTournamentOrganizer = user?.capabilities?.includes("tournament_organizer") || false;
 
   return (
     <AuthContext.Provider
@@ -122,6 +123,7 @@ export default function AuthProvider({ children }) {
         isAuthenticated,
         isSupervisor,
         isAdmin,
+        isTournamentOrganizer,
         loading,
       }}
     >

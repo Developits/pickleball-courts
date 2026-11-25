@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import AuthProvider from "./contexts/AuthProvider";
 import Navbar from "./components/Navbar";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -13,6 +14,10 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Profile from "./pages/Profile";
 import GameHistory from "./pages/GameHistory";
 import { useAuth } from "./hooks/useAuth";
+const TournamentList = lazy(() => import("./features/tournaments/pages/Tournaments").then(module => ({default:module.TournamentList})));
+const TournamentEditor = lazy(() => import("./features/tournaments/pages/Tournaments").then(module => ({default:module.TournamentEditor})));
+const OrganizerAdmin = lazy(() => import("./features/tournaments/pages/Tournaments").then(module => ({default:module.OrganizerAdmin})));
+const tournamentFallback = <p role="status">Loading tournament workspace…</p>;
 
 function AppContent() {
   const { loading, isAuthenticated } = useAuth();
@@ -38,6 +43,9 @@ function AppContent() {
             <Route path="/register" element={isAuthenticated ? <Navigate to="/" replace /> : <Register />} />
             
             {/* Protected Routes */}
+            <Route path="/tournaments" element={<ProtectedRoute><Suspense fallback={tournamentFallback}><TournamentList /></Suspense></ProtectedRoute>} />
+            <Route path="/tournaments/:tournamentId" element={<ProtectedRoute><Suspense fallback={tournamentFallback}><TournamentEditor /></Suspense></ProtectedRoute>} />
+            <Route path="/admin/tournament-organizers" element={<ProtectedRoute requireRole="admin"><Suspense fallback={tournamentFallback}><OrganizerAdmin /></Suspense></ProtectedRoute>} />
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <PlayerDashboard />
