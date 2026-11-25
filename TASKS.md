@@ -270,12 +270,14 @@ or production-secret changes as a test step.
 
 - Owner approved Phase 1 and D-01–D-04 as proposed; decision record added at
   `docs/tournaments/decisions/D-01-D-04-phase-1.md`.
-- Local branch: `feat/tournament-phase-1`. No commit, push, PR or preview was
-  created.
+- Local branch: `feat/tournament-phase-1`. Commit `aa443c7` was later pushed
+  and draft PR #3 opened, with an isolated preview; see the publication section
+  below.
 - Baseline before implementation: `npm ci --ignore-scripts` succeeded; clean
   `npm run check` passed (29 API/utility + 16 React tests at that baseline);
   `npm audit` reported 0 vulnerabilities.
-- Migration number `009` was free and reserved. No remote D1 command was run.
+- Migration number `009` was free and reserved. No remote production D1 command
+  was run.
 
 **Implemented scope**
 
@@ -328,15 +330,34 @@ git diff --check                     clean
   returning a replayed result. Tournament tests were rerun (14 passed) and the
   full gates were rerun successfully.
 
+**Publication and isolated preview — 2026-11-25**
+
+- Commit `aa443c7` pushed to `origin/feat/tournament-phase-1`; draft PR #3
+  opened against `main`.
+- The initial automatic Pages preview used the production D1 binding. It was
+  deleted immediately and replaced with an isolated preview.
+- Created free D1 database `pickleball-courts-preview`, applied `schema.sql`,
+  and configured the Pages preview environment to use it with a separate
+  `JWT_SECRET`.
+- Isolated preview deployment: `https://149c9efa.pickleball-courts-d39.pages.dev`
+  (alias `https://feat-tournament-phase-1.pickleball-courts-d39.pages.dev`).
+- Preview checks: unauthenticated `/api/tournaments` returned 401; a probe login
+  returned 401 rather than 503; the preview database contained 0 users, 0
+  tournaments and the 3 default courts. Production D1 and production secrets
+  were not used or modified.
+- No preview accounts were seeded. The preview is for deployment verification;
+  local synthetic-account checks remain the UI evidence.
+
 **Limitations / boundaries**
 
 - Phase 1 is complete only at the approved boundary. Registration, draws,
   schedules, reservations, tournament scoring, announcements, winners, public
   pages and casual/tournament ranking integration are not implemented.
 - D-05–D-12 remain pending with their recorded phase gates.
-- Migration and deployment were verified only in isolated local databases. No
-  production migration, deployment, secret change, infrastructure purchase or
-  preview was performed.
+- Migration and deployment were verified only in isolated local databases and
+  the isolated preview database. No production migration, production deployment
+  or production secret change was performed.
 - Responsive layout reuses existing responsive classes; no separate device-lab
   run was performed.
-- Branch/PR publication and production rollout require explicit owner approval.
+- The draft PR must not auto-merge. Production rollout still requires explicit
+  owner approval and a reviewed migration/deployment step.
