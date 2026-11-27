@@ -333,10 +333,11 @@ The separate tournament module is specified in
 
 Phase 1 (Admin-created drafts, Organizer capability/staff assignments, category
 metadata and audit) is merged on `main` via PR #3 and deployed to Cloudflare
-Pages. The production D1 migration has not been applied, so tournament routes
-remain unavailable until a separately reviewed migration. Registration, draws,
-scheduling, scoring, publication and operational rollout remain unimplemented
-and require separate approval. Existing casual court workflows are unchanged.
+Pages. The production D1 migration was applied on 2026-11-27. An authenticated
+admin smoke test is still pending; no production Organizer or staff assignment
+has been made. Registration, draws, scheduling, scoring, publication and later
+operational rollout remain unimplemented and require separate approval. Existing
+casual court workflows are unchanged.
 
 ## Project Layout
 

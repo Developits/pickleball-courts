@@ -1,15 +1,17 @@
 # Phase 1 review and verification evidence
 
 **Implementation status: Phase 1 merged on `main` via PR #3 and deployed to
-production Pages. The production D1 migration is pending, so tournament routes
-remain unavailable. The preview uses a dedicated preview database.**
+production Pages. The production D1 migration was applied on 2026-11-27.
+An authenticated admin smoke test is still pending. The preview uses a dedicated
+preview database.**
 
 The authoritative sequence and actual evidence log are in
 [TASKS.md](../../../TASKS.md).
 
-Production migration planning is in
-[production-migration-plan.md](production-migration-plan.md). It is a draft and
-does not authorize execution.
+Production migration planning and execution are recorded in
+[production-migration-plan.md](production-migration-plan.md) and
+[production-migration-execution.md](production-migration-execution.md). The
+schema was applied on 2026-11-27; authenticated smoke testing remains pending.
 
 This directory holds sanitized review notes and verification summaries:
 baseline commit, local migration comparison, permission matrix results,

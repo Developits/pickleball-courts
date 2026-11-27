@@ -18,8 +18,8 @@ database binding.
 
 **Merge note (2026-11-25):** The owner subsequently merged PR #3 as `e8cfa3b`,
 which automatically deployed the application code to production Pages. The
-production database migration was not applied; tournament routes return 503
-until it is. This note does not authorize Phase 2 or the production migration.
+production database migration was applied separately on 2026-11-27 after
+explicit approval. This note does not authorize Phase 2.
 
 ## Approved decisions
 
@@ -52,7 +52,8 @@ drafts.
 
 Approved technical choices:
 
-- Additive migration plus fresh-schema parity; no remote execution in Phase 1.
+- Additive migration plus fresh-schema parity; production execution required
+  separate approval and was completed on 2026-11-27.
 - Integer UTC epoch seconds for tournament instants, plus an event IANA
   timezone; casual Shanghai date rules are unchanged.
 - Revision-checked writes with `Idempotency-Key` replay protection.

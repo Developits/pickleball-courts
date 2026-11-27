@@ -1,15 +1,16 @@
 # Tournament module — review findings and gated work plan
 
-**Current mode:** PHASE 1 MERGED TO MAIN — PRODUCTION MIGRATION PENDING.
+**Current mode:** PHASE 1 LIVE IN PRODUCTION — AUTHENTICATED SMOKE TEST PENDING.
 
 **Baseline reviewed:** `main` commit `c22dce6`, 2026-11-25.
 
 **Phase 1 approval:** granted 2026-11-25 for D-01–D-04 as recorded in
 [docs/tournaments/decisions/D-01-D-04-phase-1.md](docs/tournaments/decisions/D-01-D-04-phase-1.md).
 PR #3 was merged by the owner on 2026-11-25 (merge commit `e8cfa3b`), and
-Cloudflare Pages deployed `e8cfa3b` to production. The additive migration was
-not applied to production, so tournament routes return 503. Later phases,
-production migration and operational rollout remain unapproved.
+Cloudflare Pages deployed the application to production. The additive
+`migrate_009_tournament_foundation.sql` migration was applied to production D1
+on 2026-11-27 after explicit approval. The authenticated admin smoke test is
+still pending. Later phases and production data seeding remain unapproved.
 
 Specifications:
 [PRD.md](PRD.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [DATABASE.md](DATABASE.md).
@@ -47,8 +48,8 @@ not authorize Phase 2 or production rollout.
 | R-11 | Existing casual time helpers assume Shanghai; tournaments may need event-specific dates/timezones. | D-04: explicit IANA event zone + UTC instants; casual time rules unchanged. | Implemented and tested |
 | R-12 | “Published information” does not specify anonymous visibility, private fields, or retention. | D-09/D-12 before public lists or collecting entries. No public drafts/registration in Phase 1. | Phase 2 blocker |
 | R-13 | No approved rules for category eligibility, partners, late entries, rest periods, corrections, or downstream bracket invalidation. | D-05–D-08; scoring correction design before Phase 5. No speculative implementation now. | Later dependency |
-| R-14 | New migrations must support both fresh schema and already deployed schema; future states may require SQLite CHECK-table rebuilds. | DATABASE.md migration contract; fresh/upgrade parity and casual-data preservation proven locally. No remote migration executed. | Local gate passed; remote remains approval-gated |
-| R-15 | A branch/PR can automatically produce a Cloudflare preview; that is not approval to merge or deploy production. | PR #3 was merged by the owner and production Pages deployed `e8cfa3b`. Production D1 remains unchanged and tournament routes return 503 until a reviewed migration. Previews use a dedicated database. | Merged; production migration still gated |
+| R-14 | New migrations must support both fresh schema and already deployed schema; future states may require SQLite CHECK-table rebuilds. | DATABASE.md migration contract; fresh/upgrade parity and casual-data preservation proven locally. Production `migrate_009` applied 2026-11-27 with backup and verification. | Applied and verified; future migrations remain approval-gated |
+| R-15 | A branch/PR can automatically produce a Cloudflare preview; that is not approval to merge or deploy production. | PR #3 was merged by the owner and production Pages deployed the application. Production D1 was migrated separately after explicit approval; tournament routes no longer depend on a missing table. Previews use a dedicated database. | Merged and migrated; authenticated smoke pending |
 
 The four documents share the same Phase 1 boundary and decision register.
 Unresolved decisions are not “fixed” by silently choosing a convenient schema.
@@ -57,7 +58,7 @@ Unresolved decisions are not “fixed” by silently choosing a convenient schem
 
 | Phase | Scope | Approval status |
 | --- | --- | --- |
-| 1 | Organizer/assignment security foundation; draft events/categories; Admin staff management; audit; regression protection | Approved; merged via PR #3; production migration pending |
+| 1 | Organizer/assignment security foundation; draft events/categories; Admin staff management; audit; regression protection | Approved; merged; production schema applied; smoke test pending |
 | 2 | Registration/partners/review/published category entry lists | Not approved; do not start |
 | 3 | Draw generation, seeding/byes, reviewed publication | Not approved; do not start |
 | 4 | Schedules/reservations/conflict checking | Not approved; do not start |
@@ -69,8 +70,9 @@ Unresolved decisions are not “fixed” by silently choosing a convenient schem
 Dependency order:
 `P1-00 → P1-01 → P1-02 → P1-03 → P1-04/P1-05 → P1-06 → P1-07 → P1-08`.
 Completed items are supported by the evidence log in §6. Phase 1 is merged to
-`main` in `e8cfa3b`; production D1 has not been migrated, so tournament routes
-are unavailable. Later phases and operational rollout are not authorized.
+`main` and the production D1 migration was applied on 2026-11-27. An
+authenticated admin smoke test is pending. Later phases and production data
+seeding are not authorized.
 
 ### P1-00 — Freeze decisions and permission matrix
 
@@ -368,7 +370,38 @@ git diff --check                     clean
   applied.
 - The preview remains isolated. The `6ec2e39` preview build was `4e4b3d58`.
   Follow-up docs PR #4 records the merge and the pending production migration.
-- No production database migration or production secret change was performed.
+- No production database migration or production secret change was performed
+  during that publication phase.
+
+**Production migration execution — 2026-11-27**
+
+- Explicit owner approval was given to start the approval-gated production
+  steps in [production-migration-plan.md](docs/tournaments/phase-1/production-migration-plan.md).
+- Target confirmed: `pickleball-courts` (`d70a...`); checksum
+  `5694e8ef...`; production Pages on `70db4f2`.
+- Pre-migration Time Travel bookmark:
+  `00000065-00000000-00005130-85ba5b8dd596b634b85242387f47adca`.
+- Full logical export:
+  `~/secure-d1-backups/pickleball-courts-pre-009-20261127T083850Z.sql`
+  (32,342 bytes; SHA-256 `52c2610e...`). Contents were not committed.
+- Preflight: zero tournament tables; 22 users, 3 courts, 16 settings; no
+  foreign-key violations.
+- Applied `migrate_009_tournament_foundation.sql` once with
+  `wrangler d1 execute --remote --file`. Result: 10 queries, 22 rows written,
+  `num_tables` 17, final bookmark
+  `00000065-00000005-00005130-feca6745ab1fb49c4962310f0ff8c1f3`.
+- Created five tables and five named indexes. Existing counts remained 22
+  users, 3 courts, 16 settings. New tournament tables contain zero rows.
+  `PRAGMA foreign_key_check` returned no rows.
+- `PRAGMA integrity_check` was not authorized by D1 (`SQLITE_AUTH`); this is a
+  D1 permission limitation, not a reported corruption result.
+- Production `/`, `/login` returned 200; unauthenticated `/api/tournaments`
+  returned 401. No production account was used or seeded.
+- Full sanitized record:
+  [production-migration-execution.md](docs/tournaments/phase-1/production-migration-execution.md).
+- Authenticated admin smoke test of `/tournaments` remains pending; no
+  Organizer grant or staff assignment has been made.
+- No production secret or binding change was required.
 
 **Limitations / boundaries**
 
@@ -376,15 +409,16 @@ git diff --check                     clean
   schedules, reservations, tournament scoring, announcements, winners, public
   pages and casual/tournament ranking integration are not implemented.
 - D-05–D-12 remain pending with their recorded phase gates.
-- Phase 1 code is merged and deployed to production Pages, but production D1
-  has not been migrated. Tournament routes return 503; casual login remains
-  compatible because the capability lookup treats a missing table as empty.
-- Database migration and deployment were verified only in isolated local
-  databases and the isolated preview database. No production database
-  migration or production secret change was performed.
+- Phase 1 code is merged and deployed to production Pages, and the production
+  D1 schema is applied. The authenticated admin smoke test is still pending.
+- Migration was applied with a Time Travel bookmark and a full logical export.
+  The new tables contain no production data; no Organizer grant or staff
+  assignment has been made.
 - Responsive layout reuses existing responsive classes; no separate device-lab
   run was performed.
-- Production database migration still requires explicit owner approval and a
-  reviewed operational step. The draft plan is
-  [docs/tournaments/phase-1/production-migration-plan.md](docs/tournaments/phase-1/production-migration-plan.md);
-  it has not been approved or executed.
+- Authenticated production smoke testing and any production Organizer/staff
+  setup still require owner action. Later phases and production data seeding
+  remain unauthorized. The executed plan and evidence are in
+  [production-migration-plan.md](docs/tournaments/phase-1/production-migration-plan.md)
+  and
+  [production-migration-execution.md](docs/tournaments/phase-1/production-migration-execution.md).

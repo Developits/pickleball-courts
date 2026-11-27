@@ -1,22 +1,23 @@
 # Production migration plan — `migrate_009_tournament_foundation.sql`
 
-**Status: DRAFT — not approved and not executed.**
+**Status: EXECUTED 2026-11-27 — applied successfully.**
 
-This plan is for applying the additive Phase 1 tournament schema to the
-production D1 database. Reading it, merging it or approving the code does not
-authorize execution. Execution requires a separate, explicit owner instruction
-that names this plan and the production database.
+This plan was used for applying the additive Phase 1 tournament schema to the
+production D1 database. Execution was separately approved by the owner and the
+sanitized result is recorded in
+[production-migration-execution.md](production-migration-execution.md).
 
-## 0. Current observed state — 2026-11-27
+## 0. Execution summary — 2026-11-27
 
-- Production Pages is on `84d00f5` (docs-only changes after the Phase 1 merge
-  `e8cfa3b`).
-- Production D1 has none of the five tournament tables; the last read-only
-  check found 22 existing users.
-- Unauthenticated `/api/tournaments` returns 401. Authenticated tournament
-  routes are mapped to 503 until this migration is applied.
-- Previews use the separate `pickleball-courts-preview` database.
-- No production migration command has been run.
+- Production Pages was on `70db4f2` with the Phase 1 code.
+- Production D1 had none of the five tournament tables before migration.
+- A Time Travel bookmark and a full logical export were captured.
+- `migrate_009_tournament_foundation.sql` was applied once; 10 queries and 22
+  schema rows were written.
+- Five tables and five indexes were verified; existing user/court/setting
+  counts were unchanged and new tables are empty.
+- Authenticated admin smoke testing remains pending.
+- No production data was seeded and no secret or binding was changed.
 
 ## 1. Scope
 
