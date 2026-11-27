@@ -367,7 +367,7 @@ git diff --check                     clean
   401; authenticated tournament routes return 503 until `migrate_009` is
   applied.
 - The preview remains isolated. The `6ec2e39` preview build was `4e4b3d58`.
-  A follow-up docs PR records the merge and the pending production migration.
+  Follow-up docs PR #4 records the merge and the pending production migration.
 - No production database migration or production secret change was performed.
 
 **Limitations / boundaries**
