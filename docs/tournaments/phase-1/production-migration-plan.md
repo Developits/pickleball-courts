@@ -16,6 +16,10 @@ sanitized result is recorded in
   schema rows were written.
 - Five tables and five indexes were verified; existing user/court/setting
   counts were unchanged and new tables are empty.
+- A later authenticated 500 was traced to pre-existing production drift:
+  `migrate_004.sql` had never been applied. The owner approved an additive fix,
+  recorded in
+  [production-migration-execution.md](production-migration-execution.md).
 - Authenticated admin smoke testing remains pending.
 - No production data was seeded and no secret or binding was changed.
 

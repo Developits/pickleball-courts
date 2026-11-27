@@ -108,8 +108,53 @@ Result:
 - No additional Pages deployment was required for the migration.
 - No rollback was needed.
 
+## Post-migration schema drift remediation — 2026-11-27
+
+After the migration, an authenticated `GET /api/tournaments?offset=0` returned
+500 with `Unable to complete tournament request`. The React DevTools source-map
+messages in the browser console were unrelated noise.
+
+Root cause: production had never applied `migrate_004.sql`. The `users` and
+`matches` tables had no `deleted_at` column, and `idx_users_deleted_at` did not
+exist, even though later migrations 005–008 were present. The tournament
+eligibility predicate in `functions/api/utils/tournaments/policy.js` requires
+`u.deleted_at IS NULL`; running the exact list SQL on production reproduced
+`no such column: u.deleted_at at offset 105: SQLITE_ERROR [code: 7500]`.
+The same drift affects casual endpoints that filter on `deleted_at`, including
+profile, live matches and leaderboard.
+
+Owner approved applying the missing additive change directly to production.
+
+- Time Travel bookmark before the fix:
+  `00000067-00000006-00005130-80cfe73c58a00ecaffcb75109d63ceb7`
+- Logical export:
+  `~/secure-d1-backups/pickleball-courts-pre-004-fix-20261127T090230Z.sql`
+  (35,673 bytes; SHA-256
+  `fe67aeb63072a8cf14af5b8b6332ee1c3c61be91370f18f94edecfba6e0fdad6`)
+- Applied SQL (SHA-256
+  `843e76d1870cbc4facf34b83ac20ad5edd45716010c4657407bbc4ae1bf57f73`):
+
+  ```sql
+  ALTER TABLE users ADD COLUMN deleted_at DATETIME;
+  ALTER TABLE matches ADD COLUMN deleted_at DATETIME;
+  CREATE INDEX idx_users_deleted_at ON users(deleted_at);
+  ```
+
+- Result: exit 0, final bookmark
+  `00000067-0000000c-00005130-0e5a616d67d096bccad366a5620e3b01`, 17 tables
+  retained; no data rewritten.
+- Verified: both columns exist, `idx_users_deleted_at` exists, counts unchanged
+  (22 users, 7 matches, 3 courts, 16 settings), `PRAGMA foreign_key_check` clean.
+- The exact admin list query now returns `success: true` with an empty result
+  instead of a missing-column error.
+
+This was a pre-existing production drift, not a Phase 1 code or migration
+defect. The repository migration chain already contains `migrate_004.sql`; the
+index was also missing there and is declared by `schema.sql`, so it was added
+for fresh/upgrade parity.
+
 ## Follow-up
 
-- Owner authenticated smoke test of `/tournaments`.
+- Owner authenticated smoke test of `/tournaments` after a page refresh.
 - Record the smoke-test result.
 - Only after that, consider a real Organizer grant/staff assignment.

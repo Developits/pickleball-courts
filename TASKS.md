@@ -399,8 +399,20 @@ git diff --check                     clean
   returned 401. No production account was used or seeded.
 - Full sanitized record:
   [production-migration-execution.md](docs/tournaments/phase-1/production-migration-execution.md).
-- Authenticated admin smoke test of `/tournaments` remains pending; no
-  Organizer grant or staff assignment has been made.
+- Authenticated admin smoke test of `/tournaments` initially returned 500.
+  Root cause was pre-existing production drift: `migrate_004.sql` had never been
+  applied, so `users.deleted_at`, `matches.deleted_at` and
+  `idx_users_deleted_at` were missing. This also affects casual profile, live
+  matches and leaderboard queries.
+- Owner approved a direct additive fix. A second Time Travel bookmark and
+  logical export were captured, then the two columns and index were created.
+  Verified: columns/index present, counts unchanged (22 users, 7 matches, 3
+  courts, 16 settings), `PRAGMA foreign_key_check` clean, and the exact admin
+  tournament list query succeeded with an empty result. The sanitized record is
+  in
+  [production-migration-execution.md](docs/tournaments/phase-1/production-migration-execution.md).
+- Authenticated admin smoke test of `/tournaments` after a page refresh remains
+  pending; no Organizer grant or staff assignment has been made.
 - No production secret or binding change was required.
 
 **Limitations / boundaries**
