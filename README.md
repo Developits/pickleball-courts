@@ -326,10 +326,10 @@ The separate tournament module is specified in
 [DATABASE.md](DATABASE.md), and [TASKS.md](TASKS.md).
 
 Phase 1 (Admin-created drafts, Organizer capability/staff assignments, category
-metadata and audit) is implemented on an unmerged local branch. Registration,
-draws, scheduling, scoring, publication and production rollout remain
-unimplemented and require separate approval. Existing casual court workflows are
-unchanged.
+metadata and audit) is implemented on `feat/tournament-phase-1` and published as
+draft PR #3. It is not merged or deployed to production. Registration, draws,
+scheduling, scoring, publication and production rollout remain unimplemented
+and require separate approval. Existing casual court workflows are unchanged.
 
 ## Project Layout
 

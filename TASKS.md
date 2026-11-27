@@ -1,14 +1,14 @@
 # Tournament module — review findings and gated work plan
 
-**Current mode:** PHASE 1 IMPLEMENTED LOCALLY — owner review required.
+**Current mode:** PHASE 1 IMPLEMENTED — DRAFT PR #3 UNDER REVIEW.
 
 **Baseline reviewed:** `main` commit `c22dce6`, 2026-11-25.
 
 **Phase 1 approval:** granted 2026-11-25 for D-01–D-04 as recorded in
 [docs/tournaments/decisions/D-01-D-04-phase-1.md](docs/tournaments/decisions/D-01-D-04-phase-1.md).
-The implementation is uncommitted and unpublished. Later phases, production
-migration/deployment, infrastructure changes and branch/PR publication remain
-unapproved.
+The implementation is published on `feat/tournament-phase-1` as draft PR #3.
+It is not merged or deployed to production. Later phases, merge, production
+migration/deployment, and production rollout remain unapproved.
 
 Specifications:
 [PRD.md](PRD.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [DATABASE.md](DATABASE.md).
@@ -47,7 +47,7 @@ not authorize Phase 2 or production rollout.
 | R-12 | “Published information” does not specify anonymous visibility, private fields, or retention. | D-09/D-12 before public lists or collecting entries. No public drafts/registration in Phase 1. | Phase 2 blocker |
 | R-13 | No approved rules for category eligibility, partners, late entries, rest periods, corrections, or downstream bracket invalidation. | D-05–D-08; scoring correction design before Phase 5. No speculative implementation now. | Later dependency |
 | R-14 | New migrations must support both fresh schema and already deployed schema; future states may require SQLite CHECK-table rebuilds. | DATABASE.md migration contract; fresh/upgrade parity and casual-data preservation proven locally. No remote migration executed. | Local gate passed; remote remains approval-gated |
-| R-15 | A branch/PR can automatically produce a Cloudflare preview; that is not approval to merge or deploy production. | No branch/PR has been published. Isolate preview bindings and obtain approval before publication; never auto-merge or deploy production. | Operational gate still open |
+| R-15 | A branch/PR can automatically produce a Cloudflare preview; that is not approval to merge or deploy production. | Draft PR #3 and an isolated preview are published. The preview is bound to a dedicated preview D1 database; production remains untouched. Merge/deployment still require approval; never auto-merge or deploy production. | Preview isolated; merge/deploy still gated |
 
 The four documents share the same Phase 1 boundary and decision register.
 Unresolved decisions are not “fixed” by silently choosing a convenient schema.
@@ -56,7 +56,7 @@ Unresolved decisions are not “fixed” by silently choosing a convenient schem
 
 | Phase | Scope | Approval status |
 | --- | --- | --- |
-| 1 | Organizer/assignment security foundation; draft events/categories; Admin staff management; audit; regression protection | Approved; implemented locally, unmerged |
+| 1 | Organizer/assignment security foundation; draft events/categories; Admin staff management; audit; regression protection | Approved; implemented; draft PR #3, unmerged |
 | 2 | Registration/partners/review/published category entry lists | Not approved; do not start |
 | 3 | Draw generation, seeding/byes, reviewed publication | Not approved; do not start |
 | 4 | Schedules/reservations/conflict checking | Not approved; do not start |
@@ -67,8 +67,8 @@ Unresolved decisions are not “fixed” by silently choosing a convenient schem
 
 Dependency order:
 `P1-00 → P1-01 → P1-02 → P1-03 → P1-04/P1-05 → P1-06 → P1-07 → P1-08`.
-Completed items are supported by the evidence log in §6. The branch is local
-and uncommitted; publication is not authorized.
+Completed items are supported by the evidence log in §6. The branch is
+published as draft PR #3; merge and production rollout are not authorized.
 
 ### P1-00 — Freeze decisions and permission matrix
 
@@ -276,8 +276,8 @@ or production-secret changes as a test step.
 - Baseline before implementation: `npm ci --ignore-scripts` succeeded; clean
   `npm run check` passed (29 API/utility + 16 React tests at that baseline);
   `npm audit` reported 0 vulnerabilities.
-- Migration number `009` was free and reserved. No remote production D1 command
-  was run.
+- Migration number `009` was free and reserved. No remote production migration
+  or write command was run during implementation.
 
 **Implemented scope**
 
@@ -330,23 +330,34 @@ git diff --check                     clean
   returning a replayed result. Tournament tests were rerun (14 passed) and the
   full gates were rerun successfully.
 
-**Publication and isolated preview — 2026-11-25**
+**Publication and preview isolation — 2026-11-25/27**
 
 - Commit `aa443c7` pushed to `origin/feat/tournament-phase-1`; draft PR #3
   opened against `main`.
-- The initial automatic Pages preview used the production D1 binding. It was
-  deleted immediately and replaced with an isolated preview.
-- Created free D1 database `pickleball-courts-preview`, applied `schema.sql`,
-  and configured the Pages preview environment to use it with a separate
-  `JWT_SECRET`.
-- Isolated preview deployment: `https://149c9efa.pickleball-courts-d39.pages.dev`
+- The first automatic preview and the first manual replacement were bound to
+  production D1. A dashboard/API-only preview override was overwritten because
+  `wrangler.toml` is the Pages source of truth. Those deployments and a later
+  automatic preview were deleted.
+- During that window, unauthenticated failed-login probes may have created
+  short-lived `rate_limits` rows in production. No users, tournament tables,
+  schema, casual records or production secrets were written. A later read-only
+  production check found zero tournament tables and the existing 22 users.
+- Commit `d607e49` added an `[env.preview]` D1 override in `wrangler.toml`
+  pointing at the dedicated free database `pickleball-courts-preview`;
+  production keeps the `pickleball-courts` binding.
+- Isolated preview deployment:
+  `https://d9e4add8.pickleball-courts-d39.pages.dev`
   (alias `https://feat-tournament-phase-1.pickleball-courts-d39.pages.dev`).
-- Preview checks: unauthenticated `/api/tournaments` returned 401; a probe login
-  returned 401 rather than 503; the preview database contained 0 users, 0
-  tournaments and the 3 default courts. Production D1 and production secrets
-  were not used or modified.
-- No preview accounts were seeded. The preview is for deployment verification;
-  local synthetic-account checks remain the UI evidence.
+  The Pages preview configuration points to `pickleball-courts-preview` and has
+  a preview-scoped `JWT_SECRET`.
+- Verified with a temporary synthetic admin inserted only in the preview
+  database: login succeeded, `/api/tournaments` returned 200 with an empty
+  list, and the account was then deleted. The preview database is back to
+  0 users, 0 tournaments and 0 capabilities.
+- Other preview checks: unauthenticated `/api/tournaments` returned 401 and a
+  probe login returned 401 rather than 503. No production account or
+  production secret was used.
+- No production migration, deployment or secret change was performed.
 
 **Limitations / boundaries**
 

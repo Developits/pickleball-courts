@@ -1,7 +1,7 @@
 # Tournament module documentation
 
-Phase 1 is approved and implemented on an uncommitted local branch. This
-directory is documentation, not a second implementation.
+Phase 1 is approved and implemented on `feat/tournament-phase-1`, published as
+draft PR #3. This directory is documentation, not a second implementation.
 
 ## Authoritative specifications
 

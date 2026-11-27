@@ -1,7 +1,7 @@
 # Phase 1 review and verification evidence
 
-**Implementation status: Phase 1 implemented locally; owner review pending.
-Uncommitted and unpublished.**
+**Implementation status: Phase 1 implemented; draft PR #3 under review, unmerged.
+The preview uses a dedicated preview database.**
 
 The authoritative sequence and actual evidence log are in
 [TASKS.md](../../../TASKS.md).
