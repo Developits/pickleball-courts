@@ -16,6 +16,11 @@ migration. The preview uses a dedicated free preview D1 database, enforced by
 the `[env.preview]` binding in `wrangler.toml`; production keeps its separate
 database binding.
 
+**Merge note (2026-11-25):** The owner subsequently merged PR #3 as `e8cfa3b`,
+which automatically deployed the application code to production Pages. The
+production database migration was not applied; tournament routes return 503
+until it is. This note does not authorize Phase 2 or the production migration.
+
 ## Approved decisions
 
 ### D-01 — Admin-controlled draft creation

@@ -1,14 +1,15 @@
 # Tournament module — review findings and gated work plan
 
-**Current mode:** PHASE 1 IMPLEMENTED — DRAFT PR #3 UNDER REVIEW.
+**Current mode:** PHASE 1 MERGED TO MAIN — PRODUCTION MIGRATION PENDING.
 
 **Baseline reviewed:** `main` commit `c22dce6`, 2026-11-25.
 
 **Phase 1 approval:** granted 2026-11-25 for D-01–D-04 as recorded in
 [docs/tournaments/decisions/D-01-D-04-phase-1.md](docs/tournaments/decisions/D-01-D-04-phase-1.md).
-The implementation is published on `feat/tournament-phase-1` as draft PR #3.
-It is not merged or deployed to production. Later phases, merge, production
-migration/deployment, and production rollout remain unapproved.
+PR #3 was merged by the owner on 2026-11-25 (merge commit `e8cfa3b`), and
+Cloudflare Pages deployed `e8cfa3b` to production. The additive migration was
+not applied to production, so tournament routes return 503. Later phases,
+production migration and operational rollout remain unapproved.
 
 Specifications:
 [PRD.md](PRD.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [DATABASE.md](DATABASE.md).
@@ -47,7 +48,7 @@ not authorize Phase 2 or production rollout.
 | R-12 | “Published information” does not specify anonymous visibility, private fields, or retention. | D-09/D-12 before public lists or collecting entries. No public drafts/registration in Phase 1. | Phase 2 blocker |
 | R-13 | No approved rules for category eligibility, partners, late entries, rest periods, corrections, or downstream bracket invalidation. | D-05–D-08; scoring correction design before Phase 5. No speculative implementation now. | Later dependency |
 | R-14 | New migrations must support both fresh schema and already deployed schema; future states may require SQLite CHECK-table rebuilds. | DATABASE.md migration contract; fresh/upgrade parity and casual-data preservation proven locally. No remote migration executed. | Local gate passed; remote remains approval-gated |
-| R-15 | A branch/PR can automatically produce a Cloudflare preview; that is not approval to merge or deploy production. | Draft PR #3 and an isolated preview are published. The preview is bound to a dedicated preview D1 database; production remains untouched. Merge/deployment still require approval; never auto-merge or deploy production. | Preview isolated; merge/deploy still gated |
+| R-15 | A branch/PR can automatically produce a Cloudflare preview; that is not approval to merge or deploy production. | PR #3 was merged by the owner and production Pages deployed `e8cfa3b`. Production D1 remains unchanged and tournament routes return 503 until a reviewed migration. Previews use a dedicated database. | Merged; production migration still gated |
 
 The four documents share the same Phase 1 boundary and decision register.
 Unresolved decisions are not “fixed” by silently choosing a convenient schema.
@@ -56,7 +57,7 @@ Unresolved decisions are not “fixed” by silently choosing a convenient schem
 
 | Phase | Scope | Approval status |
 | --- | --- | --- |
-| 1 | Organizer/assignment security foundation; draft events/categories; Admin staff management; audit; regression protection | Approved; implemented; draft PR #3, unmerged |
+| 1 | Organizer/assignment security foundation; draft events/categories; Admin staff management; audit; regression protection | Approved; merged via PR #3; production migration pending |
 | 2 | Registration/partners/review/published category entry lists | Not approved; do not start |
 | 3 | Draw generation, seeding/byes, reviewed publication | Not approved; do not start |
 | 4 | Schedules/reservations/conflict checking | Not approved; do not start |
@@ -67,8 +68,9 @@ Unresolved decisions are not “fixed” by silently choosing a convenient schem
 
 Dependency order:
 `P1-00 → P1-01 → P1-02 → P1-03 → P1-04/P1-05 → P1-06 → P1-07 → P1-08`.
-Completed items are supported by the evidence log in §6. The branch is
-published as draft PR #3; merge and production rollout are not authorized.
+Completed items are supported by the evidence log in §6. Phase 1 is merged to
+`main` in `e8cfa3b`; production D1 has not been migrated, so tournament routes
+are unavailable. Later phases and operational rollout are not authorized.
 
 ### P1-00 — Freeze decisions and permission matrix
 
@@ -270,9 +272,9 @@ or production-secret changes as a test step.
 
 - Owner approved Phase 1 and D-01–D-04 as proposed; decision record added at
   `docs/tournaments/decisions/D-01-D-04-phase-1.md`.
-- Local branch: `feat/tournament-phase-1`. Commit `aa443c7` was later pushed
-  and draft PR #3 opened, with an isolated preview; see the publication section
-  below.
+- Local branch: `feat/tournament-phase-1`. Commit `aa443c7` was later pushed,
+  draft PR #3 opened, and PR #3 merged as `e8cfa3b`; see the publication
+  section below.
 - Baseline before implementation: `npm ci --ignore-scripts` succeeded; clean
   `npm run check` passed (29 API/utility + 16 React tests at that baseline);
   `npm audit` reported 0 vulnerabilities.
@@ -357,7 +359,16 @@ git diff --check                     clean
 - Other preview checks: unauthenticated `/api/tournaments` returned 401 and a
   probe login returned 401 rather than 503. No production account or
   production secret was used.
-- No production migration, deployment or secret change was performed.
+- PR #3 was merged by the owner at `2026-11-25T09:55:59Z` from `d607e49`;
+  merge commit `e8cfa3b`. Cloudflare Pages automatically deployed `e8cfa3b`
+  to production as deployment `172b6bad`.
+- A read-only production check after that deployment found zero tournament
+  tables and the existing 22 users. Unauthenticated `/api/tournaments` returns
+  401; authenticated tournament routes return 503 until `migrate_009` is
+  applied.
+- The preview remains isolated. The `6ec2e39` preview build was `4e4b3d58`.
+  A follow-up docs PR records the merge and the pending production migration.
+- No production database migration or production secret change was performed.
 
 **Limitations / boundaries**
 
@@ -365,10 +376,13 @@ git diff --check                     clean
   schedules, reservations, tournament scoring, announcements, winners, public
   pages and casual/tournament ranking integration are not implemented.
 - D-05–D-12 remain pending with their recorded phase gates.
-- Migration and deployment were verified only in isolated local databases and
-  the isolated preview database. No production migration, production deployment
-  or production secret change was performed.
+- Phase 1 code is merged and deployed to production Pages, but production D1
+  has not been migrated. Tournament routes return 503; casual login remains
+  compatible because the capability lookup treats a missing table as empty.
+- Database migration and deployment were verified only in isolated local
+  databases and the isolated preview database. No production database
+  migration or production secret change was performed.
 - Responsive layout reuses existing responsive classes; no separate device-lab
   run was performed.
-- The draft PR must not auto-merge. Production rollout still requires explicit
-  owner approval and a reviewed migration/deployment step.
+- Production database migration still requires explicit owner approval and a
+  reviewed operational step.
