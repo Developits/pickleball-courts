@@ -7,6 +7,17 @@ production D1 database. Reading it, merging it or approving the code does not
 authorize execution. Execution requires a separate, explicit owner instruction
 that names this plan and the production database.
 
+## 0. Current observed state — 2026-11-27
+
+- Production Pages is on `84d00f5` (docs-only changes after the Phase 1 merge
+  `e8cfa3b`).
+- Production D1 has none of the five tournament tables; the last read-only
+  check found 22 existing users.
+- Unauthenticated `/api/tournaments` returns 401. Authenticated tournament
+  routes are mapped to 503 until this migration is applied.
+- Previews use the separate `pickleball-courts-preview` database.
+- No production migration command has been run.
+
 ## 1. Scope
 
 Apply only:
@@ -39,6 +50,7 @@ plus their indexes.
 Do **not**:
 
 - run `schema.sql` against production;
+- run `npm run deploy` or a manual Pages deployment as part of the migration;
 - seed users, Organizer grants, events, categories, staff, audit rows or test data;
 - rewrite existing `users.role` values or casual tables;
 - change production secrets, bindings, project settings or preview settings;
@@ -52,7 +64,8 @@ All must be true before execution:
 
 - [ ] Owner has approved this plan and given a separate execution instruction.
 - [ ] The execution window and responsible operator are recorded.
-- [ ] `main` is the reviewed commit and still contains the checksum above.
+- [ ] `main` is the reviewed commit and still contains the checksum above
+  (verify with `sha256sum migrate_009_tournament_foundation.sql`).
 - [ ] Production Pages is running a commit that includes the Phase 1 code.
 - [ ] A read-only production check confirms **none** of the five tournament
   tables exists.
@@ -71,8 +84,9 @@ Capture the current bookmark and timestamp:
 npx wrangler d1 time-travel info pickleball-courts --json
 ```
 
-Record the returned bookmark and timestamp in the execution log. Time Travel is
-a short-window recovery aid, not the only backup.
+Record the returned bookmark and timestamp in the execution log. Time Travel has
+a limited retention window (documented as 30 days at the time of writing) and is
+a recovery aid, not the only backup.
 
 ### 4.2 Logical export
 
