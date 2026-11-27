@@ -1,8 +1,9 @@
 # Tournament module documentation
 
 Phase 1 is approved, merged on `main` via PR #3, and deployed to Cloudflare
-Pages. The production D1 migration is still pending, so tournament routes are
-unavailable. This directory is documentation, not a second implementation.
+Pages. The production D1 migration was applied on 2026-11-27; an authenticated
+admin smoke test is still pending. This directory is documentation, not a
+second implementation.
 
 ## Authoritative specifications
 
