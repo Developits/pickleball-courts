@@ -7,6 +7,10 @@ remain unavailable. The preview uses a dedicated preview database.**
 The authoritative sequence and actual evidence log are in
 [TASKS.md](../../../TASKS.md).
 
+Production migration planning is in
+[production-migration-plan.md](production-migration-plan.md). It is a draft and
+does not authorize execution.
+
 This directory holds sanitized review notes and verification summaries:
 baseline commit, local migration comparison, permission matrix results,
 atomicity/concurrency evidence, UI checks, test commands and outcomes.

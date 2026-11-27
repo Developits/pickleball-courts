@@ -385,4 +385,6 @@ git diff --check                     clean
 - Responsive layout reuses existing responsive classes; no separate device-lab
   run was performed.
 - Production database migration still requires explicit owner approval and a
-  reviewed operational step.
+  reviewed operational step. The draft plan is
+  [docs/tournaments/phase-1/production-migration-plan.md](docs/tournaments/phase-1/production-migration-plan.md);
+  it has not been approved or executed.

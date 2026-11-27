@@ -160,7 +160,13 @@ migrate_005_court_sessions.sql
 migrate_006_remove_geofence.sql
 migrate_007_remove_hard_sit_out.sql
 migrate_008_durable_rate_limits.sql
+migrate_009_tournament_foundation.sql
 ```
+
+Production application of `migrate_009_tournament_foundation.sql` is
+approval-gated. See
+[docs/tournaments/phase-1/production-migration-plan.md](docs/tournaments/phase-1/production-migration-plan.md).
+Do not run `schema.sql` or a remote migration without that review.
 
 Example:
 
