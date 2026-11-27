@@ -5,9 +5,21 @@ that followed review of [PRD.md](../../../PRD.md),
 [ARCHITECTURE.md](../../../ARCHITECTURE.md), [DATABASE.md](../../../DATABASE.md)
 and [TASKS.md](../../../TASKS.md).
 
-**Scope:** Phase 1 only. This approval does not authorize Phase 2–6,
+**Scope:** Phase 1 only. This approval did not authorize Phase 2–6,
 infrastructure purchase, remote migration execution, production deployment,
 branch/PR publication, or a Cloudflare preview.
+
+**Amendment (2026-11-25):** The owner later explicitly approved publishing
+`feat/tournament-phase-1` as a draft PR and creating an isolated preview. That
+approval did not authorize merge, production deployment, or a production
+migration. The preview uses a dedicated free preview D1 database, enforced by
+the `[env.preview]` binding in `wrangler.toml`; production keeps its separate
+database binding.
+
+**Merge note (2026-11-25):** The owner subsequently merged PR #3 as `e8cfa3b`,
+which automatically deployed the application code to production Pages. The
+production database migration was not applied; tournament routes return 503
+until it is. This note does not authorize Phase 2 or the production migration.
 
 ## Approved decisions
 

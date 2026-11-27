@@ -326,10 +326,11 @@ The separate tournament module is specified in
 [DATABASE.md](DATABASE.md), and [TASKS.md](TASKS.md).
 
 Phase 1 (Admin-created drafts, Organizer capability/staff assignments, category
-metadata and audit) is implemented on an unmerged local branch. Registration,
-draws, scheduling, scoring, publication and production rollout remain
-unimplemented and require separate approval. Existing casual court workflows are
-unchanged.
+metadata and audit) is merged on `main` via PR #3 and deployed to Cloudflare
+Pages. The production D1 migration has not been applied, so tournament routes
+remain unavailable until a separately reviewed migration. Registration, draws,
+scheduling, scoring, publication and operational rollout remain unimplemented
+and require separate approval. Existing casual court workflows are unchanged.
 
 ## Project Layout
 

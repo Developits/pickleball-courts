@@ -1,7 +1,8 @@
 # Phase 1 review and verification evidence
 
-**Implementation status: Phase 1 implemented locally; owner review pending.
-Uncommitted and unpublished.**
+**Implementation status: Phase 1 merged on `main` via PR #3 and deployed to
+production Pages. The production D1 migration is pending, so tournament routes
+remain unavailable. The preview uses a dedicated preview database.**
 
 The authoritative sequence and actual evidence log are in
 [TASKS.md](../../../TASKS.md).

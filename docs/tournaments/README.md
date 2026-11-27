@@ -1,7 +1,8 @@
 # Tournament module documentation
 
-Phase 1 is approved and implemented on an uncommitted local branch. This
-directory is documentation, not a second implementation.
+Phase 1 is approved, merged on `main` via PR #3, and deployed to Cloudflare
+Pages. The production D1 migration is still pending, so tournament routes are
+unavailable. This directory is documentation, not a second implementation.
 
 ## Authoritative specifications
 
